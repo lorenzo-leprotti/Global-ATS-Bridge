@@ -110,3 +110,19 @@ export interface ProcessingStep {
   label: string;
   status: "pending" | "processing" | "completed" | "error";
 }
+
+export interface BatchResumeItem {
+  id: string;
+  filename: string;
+  status: "pending" | "processing" | "completed" | "error";
+  result?: ResumeProcessingResult;
+  error?: string;
+}
+
+export interface BatchProcessingResult {
+  batchId: string;
+  totalFiles: number;
+  completedFiles: number;
+  failedFiles: number;
+  items: BatchResumeItem[];
+}

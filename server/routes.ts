@@ -12,7 +12,9 @@ import type {
   DetectedIssue, 
   AppliedChange,
   WorkAuthorization,
-  OutputFormat 
+  OutputFormat,
+  BatchProcessingResult,
+  BatchResumeItem
 } from "@shared/schema";
 
 const upload = multer({
@@ -278,6 +280,245 @@ export async function registerRoutes(
     } catch (error: any) {
       return res.status(500).json({ 
         error: error.message 
+      });
+    }
+  });
+
+  app.post("/api/batch-process", upload.array("resumes", 10), async (req: Request, res: Response) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      const workAuthorization = req.body.workAuthorization as WorkAuthorization;
+      const outputFormat = (req.body.outputFormat as OutputFormat) || "pdf";
+
+      if (!files || files.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "No files uploaded" 
+        });
+      }
+
+      if (files.length > 10) {
+        return res.status(400).json({
+          success: false,
+          error: "Maximum 10 files allowed per batch"
+        });
+      }
+
+      if (!workAuthorization) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Work authorization is required" 
+        });
+      }
+
+      const filenames = files.map(f => f.originalname);
+      const batchSession = storage.createBatchSession(workAuthorization, outputFormat, filenames);
+
+      const processFile = async (file: Express.Multer.File, itemId: string): Promise<void> => {
+        storage.updateBatchItem(batchSession.batchId, itemId, { status: "processing" });
+
+        try {
+          let extractedText = "";
+          let wasOCRApplied = false;
+          let ocrConfidence = 0;
+
+          try {
+            const parsePdf = (pdfParse as any).default || pdfParse;
+            const pdfData = await parsePdf(file.buffer);
+            extractedText = pdfData.text;
+
+            const pageCount = pdfData.numpages || 1;
+            if (isLikelyScannedPDF(extractedText, pageCount)) {
+              try {
+                const ocrResult = await performOCR(file.buffer);
+                if (ocrResult.text.trim().length > extractedText.trim().length) {
+                  extractedText = ocrResult.text;
+                  wasOCRApplied = true;
+                  ocrConfidence = ocrResult.confidence;
+                }
+              } catch (ocrError) {
+                console.warn(`OCR fallback failed for ${file.originalname}:`, ocrError);
+              }
+            }
+          } catch (parseError) {
+            try {
+              const ocrResult = await performOCR(file.buffer);
+              extractedText = ocrResult.text;
+              wasOCRApplied = true;
+              ocrConfidence = ocrResult.confidence;
+            } catch (ocrError) {
+              throw new Error("Unable to extract text from PDF");
+            }
+          }
+
+          if (!extractedText || extractedText.trim().length < 50) {
+            throw new Error("Insufficient text extracted from resume");
+          }
+
+          const detectedIssues: DetectedIssue[] = [];
+          const appliedChanges: AppliedChange[] = [];
+
+          if (wasOCRApplied) {
+            detectedIssues.push({
+              type: "info",
+              original: "Scanned/image-based PDF detected",
+              description: "Document appears to be scanned or image-based"
+            });
+            appliedChanges.push({
+              type: "enhancement",
+              description: `OCR text extraction applied (${ocrConfidence.toFixed(0)}% confidence)`
+            });
+          }
+
+          const { conversions } = detectAndConvertGrades(extractedText);
+          for (const conv of conversions) {
+            detectedIssues.push({
+              type: "info",
+              original: conv.original,
+              description: `International grade format detected: ${conv.original}`
+            });
+            appliedChanges.push({
+              type: "enhancement",
+              description: "Grade converted to US GPA",
+              before: conv.original,
+              after: conv.converted
+            });
+          }
+
+          appliedChanges.push({
+            type: "fix",
+            description: "Single-column ATS-friendly layout applied"
+          });
+
+          appliedChanges.push({
+            type: "enhancement",
+            description: `Work authorization added: ${workAuthorization}`
+          });
+
+          const parsedResume = await parseResumeWithAI(extractedText, workAuthorization);
+          const finalResume = applyGradeConversionsToResume(parsedResume, conversions);
+
+          const session = storage.createSession(workAuthorization, outputFormat);
+          session.processedAt = new Date().toISOString();
+
+          storage.updateSession(session.id, {
+            session,
+            parsedResume: finalResume,
+            originalText: extractedText,
+            detectedIssues,
+            appliedChanges,
+            workAuthorization,
+            outputFormat
+          });
+
+          storage.updateBatchItem(batchSession.batchId, itemId, {
+            status: "completed",
+            result: {
+              success: true,
+              session,
+              parsedResume: finalResume,
+              detectedIssues,
+              appliedChanges,
+              extractionPercentage: 100
+            }
+          });
+        } catch (error: any) {
+          storage.updateBatchItem(batchSession.batchId, itemId, {
+            status: "error",
+            error: error.message || "Processing failed"
+          });
+        }
+      };
+
+      res.json({
+        batchId: batchSession.batchId,
+        totalFiles: files.length,
+        completedFiles: 0,
+        failedFiles: 0,
+        items: batchSession.items
+      } as BatchProcessingResult);
+
+      (async () => {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const itemId = batchSession.items[i].id;
+          try {
+            await processFile(file, itemId);
+          } catch (err) {
+            console.error(`Batch processing error for ${file.originalname}:`, err);
+          }
+        }
+      })();
+    } catch (error: any) {
+      console.error("Batch processing error:", error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || "An unexpected error occurred"
+      });
+    }
+  });
+
+  app.get("/api/batch-status/:batchId", async (req: Request, res: Response) => {
+    try {
+      const { batchId } = req.params;
+      const batchData = storage.getBatchSession(batchId);
+
+      if (!batchData) {
+        return res.status(404).json({
+          error: "Batch session not found or expired"
+        });
+      }
+
+      const completedFiles = batchData.items.filter(i => i.status === "completed").length;
+      const failedFiles = batchData.items.filter(i => i.status === "error").length;
+
+      return res.json({
+        batchId: batchData.batchId,
+        totalFiles: batchData.items.length,
+        completedFiles,
+        failedFiles,
+        items: batchData.items
+      } as BatchProcessingResult);
+    } catch (error: any) {
+      return res.status(500).json({
+        error: error.message
+      });
+    }
+  });
+
+  app.get("/api/batch-download/:batchId", async (req: Request, res: Response) => {
+    try {
+      const { batchId } = req.params;
+      const batchData = storage.getBatchSession(batchId);
+
+      if (!batchData) {
+        return res.status(404).json({
+          error: "Batch session not found or expired"
+        });
+      }
+
+      const completedItems = batchData.items.filter(i => i.status === "completed" && i.result?.session);
+      
+      if (completedItems.length === 0) {
+        return res.status(400).json({
+          error: "No completed resumes to download"
+        });
+      }
+
+      const downloadLinks = completedItems.map(item => ({
+        filename: item.filename,
+        sessionId: item.result!.session.id,
+        downloadUrl: `/api/download/${item.result!.session.id}?format=${batchData.outputFormat}`
+      }));
+
+      return res.json({
+        batchId,
+        format: batchData.outputFormat,
+        downloads: downloadLinks
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        error: error.message
       });
     }
   });

@@ -10,7 +10,9 @@ import OutputFormatSelector from "@/components/output-format-selector";
 import ProcessingView from "@/components/processing-view";
 import ComparisonView from "@/components/comparison-view";
 import DownloadSection from "@/components/download-section";
+import BatchUpload from "@/components/batch-upload";
 import { Button } from "@/components/ui/button";
+import { Files } from "lucide-react";
 import type { 
   WorkAuthorization, 
   OutputFormat, 
@@ -18,7 +20,7 @@ import type {
   ProcessingStep
 } from "@shared/schema";
 
-type ViewState = "upload" | "processing" | "results" | "error";
+type ViewState = "upload" | "processing" | "results" | "error" | "batch";
 
 const initialSteps: ProcessingStep[] = [
   { id: "extract", label: "Text extraction complete", status: "pending" },
@@ -166,7 +168,7 @@ export default function Home() {
               />
             </div>
 
-            <div className="flex justify-center pt-4">
+            <div className="flex flex-col items-center gap-4 pt-4">
               <Button
                 onClick={handleOptimize}
                 disabled={!selectedFile || processMutation.isPending}
@@ -175,8 +177,22 @@ export default function Home() {
               >
                 Optimize Resume
               </Button>
+              
+              <Button
+                variant="ghost"
+                onClick={() => setView("batch")}
+                className="gap-2 text-muted-foreground"
+                data-testid="button-batch-mode"
+              >
+                <Files className="w-4 h-4" />
+                Process Multiple Resumes
+              </Button>
             </div>
           </div>
+        )}
+
+        {view === "batch" && (
+          <BatchUpload onBack={() => setView("upload")} />
         )}
 
         {view === "processing" && (
