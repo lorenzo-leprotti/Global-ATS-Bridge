@@ -26,6 +26,21 @@ export class MemStorage implements IStorage {
   constructor() {
     this.sessions = new Map();
     this.cleanupInterval = setInterval(() => this.cleanExpiredSessions(), 60000);
+    
+    process.on('SIGTERM', () => this.shutdown());
+    process.on('SIGINT', () => this.shutdown());
+  }
+
+  private shutdown(): void {
+    console.log('Shutting down: clearing all session data for privacy...');
+    clearInterval(this.cleanupInterval);
+    this.sessions.clear();
+    console.log('All session data purged.');
+    process.exit(0);
+  }
+
+  getActiveSessionCount(): number {
+    return this.sessions.size;
   }
 
   createSession(workAuthorization: string, outputFormat: "pdf" | "docx"): ProcessingSession {
@@ -73,7 +88,8 @@ export class MemStorage implements IStorage {
 
   cleanExpiredSessions(): void {
     const now = new Date();
-    for (const [id, data] of this.sessions.entries()) {
+    const entries = Array.from(this.sessions.entries());
+    for (const [id, data] of entries) {
       if (new Date(data.session.expiresAt) < now) {
         this.sessions.delete(id);
       }

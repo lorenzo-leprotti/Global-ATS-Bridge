@@ -83,41 +83,76 @@ FORMATTING REQUIREMENTS:
 - Use past tense for previous roles, present for current
 - Maintain chronological order (most recent first)`;
 
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      
+      const isRetryable = 
+        error.status === 429 || 
+        error.status === 500 || 
+        error.status === 502 || 
+        error.status === 503 || 
+        error.code === 'ECONNRESET' ||
+        error.code === 'ETIMEDOUT';
+      
+      if (!isRetryable || attempt === maxRetries - 1) {
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+      console.log(`OpenAI request failed (attempt ${attempt + 1}/${maxRetries}), retrying in ${Math.round(delay)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError || new Error("Max retries exceeded");
+}
+
 export async function parseResumeWithAI(
   resumeText: string,
   workAuthorization: string
 ): Promise<ParsedResume> {
-  // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: `Parse the following resume and output structured JSON. The work authorization to include is: "${workAuthorization}"
+  return retryWithBackoff(async () => {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `Parse the following resume and output structured JSON. The work authorization to include is: "${workAuthorization}"
 
 RESUME TEXT:
 ${resumeText}`
-      }
-    ],
-    response_format: { type: "json_object" },
-    max_completion_tokens: 8192
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 8192
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No response from AI");
+    }
+
+    const parsed = JSON.parse(content);
+    
+    if (!parsed.personal_info) {
+      parsed.personal_info = { name: "", email: "", work_authorization: workAuthorization };
+    }
+    parsed.personal_info.work_authorization = workAuthorization;
+
+    const validated = parsedResumeSchema.parse(parsed);
+    return validated;
   });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("No response from AI");
-  }
-
-  const parsed = JSON.parse(content);
-  
-  if (!parsed.personal_info) {
-    parsed.personal_info = { name: "", email: "", work_authorization: workAuthorization };
-  }
-  parsed.personal_info.work_authorization = workAuthorization;
-
-  const validated = parsedResumeSchema.parse(parsed);
-  return validated;
 }
 
 export function validateParsedResume(resume: ParsedResume): { valid: boolean; errors: string[] } {

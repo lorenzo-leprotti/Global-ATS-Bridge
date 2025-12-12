@@ -4,7 +4,7 @@ import multer from "multer";
 import * as pdfParse from "pdf-parse";
 import { storage } from "./storage";
 import { parseResumeWithAI, validateParsedResume } from "./openai-service";
-import { detectAndConvertGrades } from "./grade-conversion";
+import { detectAndConvertGrades, applyGradeConversionsToResume } from "./grade-conversion";
 import { generatePDF, generateDOCX } from "./pdf-generator";
 import type { 
   ResumeProcessingResult, 
@@ -139,11 +139,13 @@ export async function registerRoutes(
         console.warn("Resume validation warnings:", validation.errors);
       }
 
+      const finalResume = applyGradeConversionsToResume(parsedResume, conversions);
+
       session.processedAt = new Date().toISOString();
 
       storage.updateSession(session.id, {
         session,
-        parsedResume,
+        parsedResume: finalResume,
         originalText: extractedText,
         detectedIssues,
         appliedChanges,
@@ -154,7 +156,7 @@ export async function registerRoutes(
       const result: ResumeProcessingResult = {
         success: true,
         session,
-        parsedResume,
+        parsedResume: finalResume,
         detectedIssues,
         appliedChanges,
         extractionPercentage: 100

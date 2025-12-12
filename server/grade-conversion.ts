@@ -122,3 +122,36 @@ export function detectAndConvertGrades(text: string): {
 
   return { convertedText, conversions };
 }
+
+export function applyGradeConversionsToResume<T extends { education?: Array<{ gpa?: string }> }>(
+  resume: T,
+  conversions: Array<{ original: string; converted: string }>
+): T {
+  if (!resume.education || resume.education.length === 0 || conversions.length === 0) {
+    return resume;
+  }
+
+  const updatedEducation = resume.education.map((edu) => {
+    if (!edu.gpa) return edu;
+    
+    let updatedGpa = edu.gpa;
+    for (const conv of conversions) {
+      if (edu.gpa.includes(conv.original) || 
+          edu.gpa.toLowerCase().includes(conv.original.toLowerCase())) {
+        updatedGpa = conv.converted;
+        break;
+      }
+    }
+    
+    if (updatedGpa === edu.gpa) {
+      const result = convertGrade(edu.gpa);
+      if (result.wasConverted) {
+        updatedGpa = result.converted;
+      }
+    }
+    
+    return { ...edu, gpa: updatedGpa };
+  });
+
+  return { ...resume, education: updatedEducation };
+}
