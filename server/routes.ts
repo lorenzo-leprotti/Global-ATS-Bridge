@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import { parseResumeWithAI, validateParsedResume } from "./openai-service";
 import { detectAndConvertGrades, applyGradeConversionsToResume } from "./grade-conversion";
 import { generatePDF, generateDOCX } from "./pdf-generator";
+import { performOCR, isLikelyScannedPDF } from "./ocr-service";
 import type { 
   ResumeProcessingResult, 
   DetectedIssue, 
@@ -55,32 +56,71 @@ export async function registerRoutes(
 
       const session = storage.createSession(workAuthorization, outputFormat || "pdf");
 
-      let pdfData;
+      let extractedText = "";
+      let wasOCRApplied = false;
+      let ocrConfidence = 0;
+      
       try {
         const parsePdf = (pdfParse as any).default || pdfParse;
-        pdfData = await parsePdf(file.buffer);
+        const pdfData = await parsePdf(file.buffer);
+        extractedText = pdfData.text;
+        
+        const pageCount = pdfData.numpages || 1;
+        if (isLikelyScannedPDF(extractedText, pageCount)) {
+          console.log("Low text density detected, attempting OCR...");
+          try {
+            const ocrResult = await performOCR(file.buffer);
+            if (ocrResult.text.trim().length > extractedText.trim().length) {
+              extractedText = ocrResult.text;
+              wasOCRApplied = true;
+              ocrConfidence = ocrResult.confidence;
+              console.log(`OCR completed with ${ocrConfidence.toFixed(1)}% confidence`);
+            }
+          } catch (ocrError) {
+            console.warn("OCR fallback failed:", ocrError);
+          }
+        }
       } catch (parseError) {
-        return res.status(400).json({
-          success: false,
-          session,
-          error: "Unable to extract text from PDF. This may be a scanned or image-based PDF.",
-          extractionPercentage: 0
-        } as ResumeProcessingResult);
+        console.log("PDF parsing failed, attempting OCR on raw buffer...");
+        try {
+          const ocrResult = await performOCR(file.buffer);
+          extractedText = ocrResult.text;
+          wasOCRApplied = true;
+          ocrConfidence = ocrResult.confidence;
+          console.log(`OCR completed with ${ocrConfidence.toFixed(1)}% confidence`);
+        } catch (ocrError) {
+          return res.status(400).json({
+            success: false,
+            session,
+            error: "Unable to extract text from PDF. OCR processing also failed. Please try a different file.",
+            extractionPercentage: 0
+          } as ResumeProcessingResult);
+        }
       }
-
-      const extractedText = pdfData.text;
       
       if (!extractedText || extractedText.trim().length < 50) {
         return res.status(400).json({
           success: false,
           session,
-          error: "This appears to be a scanned/image-based PDF. Please upload a text-based resume.",
+          error: "Could not extract sufficient text from your resume. Please ensure the PDF contains readable text or try uploading a clearer scan.",
           extractionPercentage: extractedText ? Math.min(extractedText.length / 500 * 100, 20) : 0
         } as ResumeProcessingResult);
       }
 
       const detectedIssues: DetectedIssue[] = [];
       const appliedChanges: AppliedChange[] = [];
+
+      if (wasOCRApplied) {
+        detectedIssues.push({
+          type: "info",
+          original: "Scanned/image-based PDF detected",
+          description: "Document appears to be scanned or image-based"
+        });
+        appliedChanges.push({
+          type: "enhancement",
+          description: `OCR text extraction applied (${ocrConfidence.toFixed(0)}% confidence)`
+        });
+      }
 
       if (extractedText.toLowerCase().includes("photo") || 
           extractedText.includes("headshot") ||
