@@ -76,12 +76,13 @@ export default function Home() {
         body: formData,
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to process resume");
+        throw new Error(data.error || data.message || "Failed to process resume");
       }
       
-      return response.json() as Promise<ResumeProcessingResult>;
+      return data as ResumeProcessingResult;
     },
     onMutate: () => {
       setView("processing");

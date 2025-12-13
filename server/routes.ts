@@ -58,17 +58,28 @@ export async function registerRoutes(
       const outputFormat = req.body.outputFormat as OutputFormat;
       const templateId = (req.body.templateId as IndustryTemplate) || "general";
 
+      console.log("[process-resume] Request received:", {
+        hasFile: !!file,
+        fileSize: file?.size,
+        fileName: file?.originalname,
+        workAuthorization: workAuthorization || "missing",
+        outputFormat,
+        templateId
+      });
+
       if (!file) {
+        console.log("[process-resume] ERROR: No file in request");
         return res.status(400).json({ 
           success: false, 
-          error: "No file uploaded" 
+          error: "No file uploaded. Please select a PDF file and try again." 
         });
       }
 
       if (!workAuthorization) {
+        console.log("[process-resume] ERROR: No work authorization");
         return res.status(400).json({ 
           success: false, 
-          error: "Work authorization is required" 
+          error: "Work authorization is required. Please select your work authorization status." 
         });
       }
 
@@ -79,48 +90,55 @@ export async function registerRoutes(
       let ocrConfidence = 0;
       
       try {
+        console.log("[process-resume] Parsing PDF...");
         const parsePdf = (pdfParse as any).default || pdfParse;
         const pdfData = await parsePdf(file.buffer);
         extractedText = pdfData.text;
+        console.log(`[process-resume] PDF parsed, text length: ${extractedText.length}, pages: ${pdfData.numpages}`);
         
         const pageCount = pdfData.numpages || 1;
         if (isLikelyScannedPDF(extractedText, pageCount)) {
-          console.log("Low text density detected, attempting OCR...");
+          console.log("[process-resume] Low text density detected, attempting OCR...");
           try {
             const ocrResult = await performOCR(file.buffer);
             if (ocrResult.text.trim().length > extractedText.trim().length) {
               extractedText = ocrResult.text;
               wasOCRApplied = true;
               ocrConfidence = ocrResult.confidence;
-              console.log(`OCR completed with ${ocrConfidence.toFixed(1)}% confidence`);
+              console.log(`[process-resume] OCR completed with ${ocrConfidence.toFixed(1)}% confidence, text length: ${extractedText.length}`);
             }
           } catch (ocrError) {
-            console.warn("OCR fallback failed:", ocrError);
+            console.warn("[process-resume] OCR fallback failed:", ocrError);
           }
         }
-      } catch (parseError) {
-        console.log("PDF parsing failed, attempting OCR on raw buffer...");
+      } catch (parseError: any) {
+        console.log("[process-resume] PDF parsing failed:", parseError.message);
+        console.log("[process-resume] Attempting OCR on raw buffer...");
         try {
           const ocrResult = await performOCR(file.buffer);
           extractedText = ocrResult.text;
           wasOCRApplied = true;
           ocrConfidence = ocrResult.confidence;
-          console.log(`OCR completed with ${ocrConfidence.toFixed(1)}% confidence`);
-        } catch (ocrError) {
+          console.log(`[process-resume] OCR completed with ${ocrConfidence.toFixed(1)}% confidence, text length: ${extractedText.length}`);
+        } catch (ocrError: any) {
+          console.log("[process-resume] ERROR: Both PDF parsing and OCR failed");
           return res.status(400).json({
             success: false,
             session,
-            error: "Unable to extract text from PDF. OCR processing also failed. Please try a different file.",
+            error: "Unable to extract text from PDF. The file may be corrupted or password-protected. Please try a different file.",
             extractionPercentage: 0
           } as ResumeProcessingResult);
         }
       }
       
+      console.log(`[process-resume] Final extracted text length: ${extractedText?.length || 0}`);
+      
       if (!extractedText || extractedText.trim().length < 50) {
+        console.log("[process-resume] ERROR: Insufficient text extracted");
         return res.status(400).json({
           success: false,
           session,
-          error: "Could not extract sufficient text from your resume. Please ensure the PDF contains readable text or try uploading a clearer scan.",
+          error: `Could not extract sufficient text from your resume (only ${extractedText?.trim().length || 0} characters found). Please ensure the PDF contains readable text, not just images.`,
           extractionPercentage: extractedText ? Math.min(extractedText.length / 500 * 100, 20) : 0
         } as ResumeProcessingResult);
       }
