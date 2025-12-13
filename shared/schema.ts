@@ -126,3 +126,25 @@ export interface BatchProcessingResult {
   failedFiles: number;
   items: BatchResumeItem[];
 }
+
+export type IndustryTemplate = "tech" | "finance" | "consulting" | "general";
+
+export interface TemplateOption {
+  id: IndustryTemplate;
+  name: string;
+  description: string;
+}
+
+export interface ScoreBreakdown {
+  category: string;
+  score: number;
+  maxScore: number;
+  suggestions: string[];
+}
+
+export interface ResumeScore {
+  overallScore: number;
+  grade: "A" | "B" | "C" | "D" | "F";
+  breakdown: ScoreBreakdown[];
+  topSuggestions: string[];
+}

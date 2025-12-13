@@ -7,12 +7,25 @@ export interface OCRResult {
 }
 
 export async function performOCR(imageBuffer: Buffer): Promise<OCRResult> {
+  let worker: Tesseract.Worker | null = null;
+  
   try {
-    const worker = await Tesseract.createWorker('eng');
+    const isPDF = imageBuffer.slice(0, 5).toString() === '%PDF-';
+    if (isPDF) {
+      console.log("OCR: PDF buffer detected - Tesseract cannot process PDFs directly");
+      return {
+        text: "",
+        confidence: 0,
+        wasOCRApplied: false
+      };
+    }
+
+    worker = await Tesseract.createWorker('eng');
     
     const { data } = await worker.recognize(imageBuffer);
     
     await worker.terminate();
+    worker = null;
     
     return {
       text: data.text,
@@ -20,8 +33,19 @@ export async function performOCR(imageBuffer: Buffer): Promise<OCRResult> {
       wasOCRApplied: true
     };
   } catch (error: any) {
-    console.error("OCR error:", error);
-    throw new Error(`OCR processing failed: ${error.message}`);
+    console.error("OCR error:", error.message);
+    if (worker) {
+      try {
+        await worker.terminate();
+      } catch (e) {
+        // Ignore termination errors
+      }
+    }
+    return {
+      text: "",
+      confidence: 0,
+      wasOCRApplied: false
+    };
   }
 }
 
@@ -32,28 +56,48 @@ export async function performOCROnMultipleImages(
     return { text: "", confidence: 0, wasOCRApplied: false };
   }
   
+  let worker: Tesseract.Worker | null = null;
+  
   try {
-    const worker = await Tesseract.createWorker('eng');
+    worker = await Tesseract.createWorker('eng');
     
     const results: string[] = [];
     let totalConfidence = 0;
+    let successCount = 0;
     
     for (const buffer of imageBuffers) {
-      const { data } = await worker.recognize(buffer);
-      results.push(data.text);
-      totalConfidence += data.confidence;
+      try {
+        const { data } = await worker.recognize(buffer);
+        results.push(data.text);
+        totalConfidence += data.confidence;
+        successCount++;
+      } catch (e) {
+        console.warn("OCR failed for one image, continuing...");
+      }
     }
     
     await worker.terminate();
+    worker = null;
+    
+    if (successCount === 0) {
+      return { text: "", confidence: 0, wasOCRApplied: false };
+    }
     
     return {
       text: results.join("\n\n"),
-      confidence: totalConfidence / imageBuffers.length,
+      confidence: totalConfidence / successCount,
       wasOCRApplied: true
     };
   } catch (error: any) {
-    console.error("OCR error:", error);
-    throw new Error(`OCR processing failed: ${error.message}`);
+    console.error("OCR error:", error.message);
+    if (worker) {
+      try {
+        await worker.terminate();
+      } catch (e) {
+        // Ignore termination errors
+      }
+    }
+    return { text: "", confidence: 0, wasOCRApplied: false };
   }
 }
 
