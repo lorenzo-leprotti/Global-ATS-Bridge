@@ -1,5 +1,8 @@
 import Tesseract from "tesseract.js";
 import { pdfToPng } from "pdf-to-png-converter";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 
 export interface OCRResult {
   text: string;
@@ -49,11 +52,18 @@ export async function performOCR(imageOrPdfBuffer: Buffer): Promise<OCRResult> {
 
 async function performOCROnPDF(pdfBuffer: Buffer): Promise<OCRResult> {
   let worker: Tesseract.Worker | null = null;
+  let tempFilePath: string | null = null;
   
   try {
     console.log("OCR: Converting PDF pages to PNG images...");
     
-    const pngPages = await pdfToPng(pdfBuffer, {
+    // pdf-to-png-converter requires a file path, so write buffer to temp file
+    const tempDir = os.tmpdir();
+    tempFilePath = path.join(tempDir, `ocr-temp-${Date.now()}.pdf`);
+    fs.writeFileSync(tempFilePath, pdfBuffer);
+    console.log(`OCR: Wrote temp PDF to ${tempFilePath}`);
+    
+    const pngPages = await pdfToPng(tempFilePath, {
       viewportScale: 2.0,
       disableFontFace: true,
       useSystemFonts: false,
@@ -124,6 +134,16 @@ async function performOCROnPDF(pdfBuffer: Buffer): Promise<OCRResult> {
       confidence: 0,
       wasOCRApplied: false
     };
+  } finally {
+    // Clean up temp file
+    if (tempFilePath) {
+      try {
+        fs.unlinkSync(tempFilePath);
+        console.log("OCR: Cleaned up temp PDF file");
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
   }
 }
 

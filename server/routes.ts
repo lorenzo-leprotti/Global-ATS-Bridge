@@ -1,7 +1,8 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
-import * as pdfParse from "pdf-parse";
+import * as pdfParseModule from "pdf-parse";
+const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 import { storage } from "./storage";
 import { parseResumeWithAI, validateParsedResume } from "./openai-service";
 import { detectAndConvertGrades, applyGradeConversionsToResume } from "./grade-conversion";
@@ -91,8 +92,7 @@ export async function registerRoutes(
       
       try {
         console.log("[process-resume] Parsing PDF...");
-        const parsePdf = (pdfParse as any).default || pdfParse;
-        const pdfData = await parsePdf(file.buffer);
+        const pdfData = await pdfParse(file.buffer);
         extractedText = pdfData.text;
         console.log(`[process-resume] PDF parsed, text length: ${extractedText.length}, pages: ${pdfData.numpages}`);
         
@@ -360,8 +360,7 @@ export async function registerRoutes(
           let ocrConfidence = 0;
 
           try {
-            const parsePdf = (pdfParse as any).default || pdfParse;
-            const pdfData = await parsePdf(file.buffer);
+            const pdfData = await pdfParse(file.buffer);
             extractedText = pdfData.text;
 
             const pageCount = pdfData.numpages || 1;
