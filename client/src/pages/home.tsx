@@ -7,15 +7,18 @@ import PrivacyBadge from "@/components/privacy-badge";
 import FileUpload from "@/components/file-upload";
 import WorkAuthDropdown from "@/components/work-auth-dropdown";
 import OutputFormatSelector from "@/components/output-format-selector";
+import TemplateSelector from "@/components/template-selector";
 import ProcessingView from "@/components/processing-view";
 import ComparisonView from "@/components/comparison-view";
 import DownloadSection from "@/components/download-section";
+import ScoreDisplay from "@/components/score-display";
 import BatchUpload from "@/components/batch-upload";
 import { Button } from "@/components/ui/button";
 import { Files } from "lucide-react";
 import type { 
   WorkAuthorization, 
   OutputFormat, 
+  IndustryTemplate,
   ResumeProcessingResult,
   ProcessingStep
 } from "@shared/schema";
@@ -37,6 +40,7 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [workAuth, setWorkAuth] = useState<WorkAuthorization>("F-1 OPT (Optional Practical Training)");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("pdf");
+  const [template, setTemplate] = useState<IndustryTemplate>("general");
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>(initialSteps);
   const [result, setResult] = useState<ResumeProcessingResult | null>(null);
 
@@ -65,6 +69,7 @@ export default function Home() {
       formData.append("resume", selectedFile);
       formData.append("workAuthorization", workAuth);
       formData.append("outputFormat", outputFormat);
+      formData.append("templateId", template);
 
       const response = await fetch("/api/process-resume", {
         method: "POST",
@@ -123,6 +128,7 @@ export default function Home() {
     setSelectedFile(null);
     setResult(null);
     setProcessingSteps(initialSteps);
+    setTemplate("general");
   };
 
   return (
@@ -160,6 +166,11 @@ export default function Home() {
               <WorkAuthDropdown 
                 value={workAuth}
                 onChange={setWorkAuth}
+              />
+
+              <TemplateSelector
+                value={template}
+                onChange={setTemplate}
               />
 
               <OutputFormatSelector 
@@ -201,6 +212,10 @@ export default function Home() {
 
         {view === "results" && result && (
           <div className="w-full max-w-5xl space-y-8">
+            {result.score && (
+              <ScoreDisplay score={result.score} />
+            )}
+            
             <ComparisonView 
               detectedIssues={result.detectedIssues || []}
               appliedChanges={result.appliedChanges || []}

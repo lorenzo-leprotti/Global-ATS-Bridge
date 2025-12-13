@@ -98,6 +98,7 @@ export interface ResumeProcessingResult {
   appliedChanges?: AppliedChange[];
   error?: string;
   extractionPercentage?: number;
+  score?: ResumeScore;
 }
 
 export interface UploadRequest {

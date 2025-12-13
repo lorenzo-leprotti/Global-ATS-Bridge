@@ -7,6 +7,8 @@ import { parseResumeWithAI, validateParsedResume } from "./openai-service";
 import { detectAndConvertGrades, applyGradeConversionsToResume } from "./grade-conversion";
 import { generatePDF, generateDOCX } from "./pdf-generator";
 import { performOCR, isLikelyScannedPDF } from "./ocr-service";
+import { getAllTemplates, getTemplate, type IndustryTemplate } from "./templates";
+import { scoreResume } from "./resume-scoring";
 import type { 
   ResumeProcessingResult, 
   DetectedIssue, 
@@ -36,11 +38,25 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.get("/api/templates", async (_req: Request, res: Response) => {
+    try {
+      const templates = getAllTemplates();
+      return res.json(templates.map(t => ({
+        id: t.id,
+        name: t.name,
+        description: t.description
+      })));
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/process-resume", upload.single("resume"), async (req: Request, res: Response) => {
     try {
       const file = req.file;
       const workAuthorization = req.body.workAuthorization as WorkAuthorization;
       const outputFormat = req.body.outputFormat as OutputFormat;
+      const templateId = (req.body.templateId as IndustryTemplate) || "general";
 
       if (!file) {
         return res.status(400).json({ 
@@ -183,6 +199,8 @@ export async function registerRoutes(
 
       const finalResume = applyGradeConversionsToResume(parsedResume, conversions);
 
+      const score = scoreResume(finalResume, templateId);
+
       session.processedAt = new Date().toISOString();
 
       storage.updateSession(session.id, {
@@ -201,7 +219,8 @@ export async function registerRoutes(
         parsedResume: finalResume,
         detectedIssues,
         appliedChanges,
-        extractionPercentage: 100
+        extractionPercentage: 100,
+        score
       };
 
       return res.json(result);
