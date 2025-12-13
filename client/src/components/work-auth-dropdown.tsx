@@ -39,7 +39,7 @@ export default function WorkAuthDropdown({ value, onChange }: WorkAuthDropdownPr
               key={option} 
               value={option}
               className="font-serif py-3"
-              data-testid={`option-work-auth-${option.split(" ")[0].toLowerCase()}`}
+              data-testid={`option-work-auth-${option.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, "")}`}
             >
               {option}
             </SelectItem>
