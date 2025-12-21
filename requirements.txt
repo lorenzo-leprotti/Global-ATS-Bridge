@@ -1,4 +1,3 @@
 streamlit
-openai
-pdfplumber
+google-generativeai
 reportlab

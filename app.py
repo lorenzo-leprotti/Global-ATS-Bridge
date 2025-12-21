@@ -1,44 +1,89 @@
 import streamlit as st
-import pdfplumber
-import io
 import google.generativeai as genai
 import json
+import io
+import tempfile
+import os
+import time
+import base64
+import concurrent.futures
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
+import prompts  # Prompt library for agent personas
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Global ATS Bridge (MVP)", layout="wide")
+st.set_page_config(page_title="Global ATS Bridge (V3 Tournament)", layout="wide")
 
-# Initialize Gemini 2.5 Flash
+# --- RETRY HELPER ---
+def retry_with_backoff(func, max_retries=3):
+    """Retries a function with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise  # Give up after last attempt
+            wait_time = 2 ** attempt  # 1s, 2s, 4s
+            time.sleep(wait_time)
+
+# Initialize Gemini
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception:
     st.error("🚨 API Key missing! Check .streamlit/secrets.toml")
     st.stop()
 
-# --- THE "HANDS": PDF GENERATOR FUNCTION ---
-def generate_resume_pdf(data):
+# --- 1. THE LOGGER (FLYWHEEL) ---
+def save_training_data(original_filename, selected_variant, final_json, validation_report=None):
+    """Saves the user's preference to a local JSONL file for future fine-tuning."""
+    log_entry = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "filename": original_filename,
+        "selected_variant": selected_variant,
+        "final_json": final_json,
+        "validation_report": validation_report if validation_report else {"valid": True, "invalid_gpas_found": []}
+    }
+    with open("training_data.jsonl", "a") as f:
+        f.write(json.dumps(log_entry) + "\n")
+
+# --- 2A. PDF PREVIEW HELPER ---
+def display_pdf(pdf_bytes, height=1000):
+    """Displays a PDF inline using base64 encoding in an iframe."""
+    base64_pdf = base64.b64encode(pdf_bytes.getvalue()).decode('utf-8')
+    pdf_display = f'''
+        <iframe
+            src="data:application/pdf;base64,{base64_pdf}"
+            width="100%"
+            height="{height}"
+            type="application/pdf"
+            style="border: 2px solid #444; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        </iframe>
+    '''
+    st.markdown(pdf_display, unsafe_allow_html=True)
+
+# --- 2B. THE HANDS: DYNAMIC PDF GENERATOR ---
+def generate_dynamic_pdf(data):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=LETTER)
     width, height = LETTER
     
-    # METADATA & FONT SETUP
-    c.setTitle(f"Resume - {data.get('contact_info', {}).get('name', 'Candidate')}")
-    
-    # HELPER: DRAW LINE
+    # Metadata
+    contact = data.get("contact_info", {})
+    name = contact.get("name", "Candidate").upper()
+    c.setTitle(f"Resume - {name}")
+
+    # Helper: Draw Divider Line
     def draw_line(y):
         c.setStrokeColor(colors.black)
         c.setLineWidth(0.5)
         c.line(50, y, width - 50, y)
         return y - 15
 
-    # CURSOR TRACKER (Keeps track of where we are writing on the page)
+    # Tracker
     y = height - 50
-    
-    # 1. HEADER (Name & Contact)
-    contact = data.get("contact_info", {})
-    name = contact.get("name", "Name Not Found").upper()
+
+    # HEADER
     info_line = f"{contact.get('location', '')} | {contact.get('email', '')} | {contact.get('phone', '')}"
     
     c.setFont("Times-Bold", 16)
@@ -47,145 +92,949 @@ def generate_resume_pdf(data):
     
     c.setFont("Times-Roman", 10)
     c.drawCentredString(width / 2, y, info_line)
+    if contact.get("linkedin"):
+        y -= 12
+        c.drawCentredString(width / 2, y, contact.get("linkedin"))
     y -= 15
-    
-    # 2. WORK AUTHORIZATION (The "Visa Signal")
+
+    # WORK AUTHORIZATION
     visa = data.get("work_authorization", "Unknown Status")
     c.setFont("Times-Bold", 10)
     c.drawCentredString(width / 2, y, f"WORK AUTHORIZATION: {visa}")
     y -= 25
 
-    # 3. EDUCATION SECTION
-    c.setFont("Times-Bold", 12)
-    c.drawString(50, y, "EDUCATION")
-    y -= 5
-    y = draw_line(y)
+    # DYNAMIC SECTIONS LOOP
+    # We iterate through whatever sections the AI found
+    sections = data.get("sections", [])
     
-    for edu in data.get("education", []):
-        # University & Location (Right Aligned)
-        c.setFont("Times-Bold", 10)
-        c.drawString(50, y, edu.get("university", "University"))
+    for section in sections:
+        # Page Break Check
+        if y < 100:
+            c.showPage()
+            y = height - 50
         
-        # Degree & GPA
-        c.setFont("Times-Roman", 10)
-        y -= 12
-        degree_line = f"{edu.get('degree', 'Degree')} -- {edu.get('gpa_converted', '')}"
-        c.drawString(50, y, degree_line)
-        y -= 20
-        
-    y -= 10 # Spacer
+        # Section Header
+        category = section.get("us_category", "Other").upper()
+        c.setFont("Times-Bold", 12)
+        c.drawString(50, y, category)
+        y -= 5
+        y = draw_line(y)
 
-    # 4. EXPERIENCE SECTION
-    c.setFont("Times-Bold", 12)
-    c.drawString(50, y, "PROFESSIONAL EXPERIENCE")
-    y -= 5
-    y = draw_line(y)
-    
-    for exp in data.get("experience", []):
-        # Company & Role
-        c.setFont("Times-Bold", 10)
-        c.drawString(50, y, f"{exp.get('company', 'Company')} | {exp.get('role', 'Role')}")
-        y -= 12
+        # Content Handling
+        content = section.get("content", [])
         
-        # Bullets
-        c.setFont("Times-Roman", 10)
-        for bullet in exp.get("bullets", [])[:3]: # Limit to top 3 bullets per role for MVP
-            c.drawString(65, y, f"• {bullet}")
-            y -= 12
-        y -= 10
+        # Scenario A: Content is a list of strings (Skills)
+        if isinstance(content, list) and all(isinstance(i, str) for i in content):
+            c.setFont("Times-Roman", 10)
+            text_block = ", ".join(content)
+            # Simple wrapping
+            start = 0
+            while start < len(text_block):
+                end = start + 100
+                line = text_block[start:end]
+                c.drawString(50, y, line)
+                y -= 12
+                start = end
+            y -= 10
+
+        # Scenario B: Content is a list of objects (Experience/Education)
+        elif isinstance(content, list):
+            for entry in content:
+                if not isinstance(entry, dict): continue # Skip bad data
+                
+                # Header Line (Company / University)
+                header = entry.get("header", "")
+                subheader = entry.get("subheader", "") # Role / Degree
+                date = entry.get("date", "")
+                
+                c.setFont("Times-Bold", 10)
+                c.drawString(50, y, header)
+                c.drawRightString(width - 50, y, date)
+                y -= 12
+                
+                if subheader:
+                    c.setFont("Times-Roman", 10) # Italic simulation? Just Roman for MVP
+                    c.drawString(50, y, subheader)
+                    y -= 12
+                
+                # Bullets
+                bullets = entry.get("bullets", [])
+                c.setFont("Times-Roman", 10)
+                for bullet in bullets:
+                    # Clean bullet
+                    bullet_text = f"• {bullet}"
+                    if len(bullet_text) > 95: bullet_text = bullet_text[:95] + "..."
+                    c.drawString(65, y, bullet_text)
+                    y -= 12
+                y -= 8 # Spacing between entries
+            y -= 10 # Spacing between sections
 
     c.save()
     buffer.seek(0)
     return buffer
 
-# --- THE "BRAIN": SYSTEM PROMPT ---
-# --- THE "BRAIN": DYNAMIC SYSTEM PROMPT ---
-SYSTEM_PROMPT = """
-You are an expert Resume Architect. Your goal is to parse ANY resume format and normalize it for US ATS systems.
+# --- 3. THE BRAIN: PROMPT FACTORY ---
+def get_system_prompt(persona):
+    """Generate system prompt using centralized prompt library with injected grading standards."""
 
-ALGORITHM:
-1. SCAN: Read the document and identify every distinct section (e.g., "Work History", "Academic Background", "Projects", "Patents", "Publications").
-2. MAP: For each section, determine the best US Standard Category:
-   - "Experience" (Work History, Employment, Internships)
-   - "Education" (Academics, Degrees, Certifications)
-   - "Skills" (Tech Stack, Tools, Languages)
-   - "Summary" (Profile, Bio, Objective)
-   - "Other" (Volunteering, Awards, Patents, everything else)
-3. EXTRACT: Keep the content verbatim (do not summarize). Fix grammar/action verbs only.
-4. GRADES: If you see grades in Education, keep the original AND append "(US Equivalent: X.X)" if calculable.
+    # Load deterministic grading standards from JSON
+    try:
+        with open("grading_standards.json", "r") as f:
+            grading_rules = f.read()
+    except FileNotFoundError:
+        # Fallback to embedded rules if file not found
+        grading_rules = json.dumps(prompts.GRADING_RULES, indent=2)
+        st.warning("⚠️ grading_standards.json not found. Using embedded fallback rules.")
 
-OUTPUT SCHEMA (JSON):
-{
-  "contact_info": { "name": "...", "email": "...", "location": "...", "phone": "...", "linkedin": "..." },
-  "work_authorization": "...",
-  "sections": [
-    {
-      "original_title": "String (e.g., 'My Code')",
-      "us_category": "Skills", 
-      "content": ["Python", "Streamlit", ...] 
-    },
-    {
-      "original_title": "String (e.g., 'Career Journey')",
-      "us_category": "Experience",
-      "entries": [ 
-         { "header": "Company A", "subheader": "Role B", "date": "2020-2023", "bullets": ["Did X", "Did Y"] } 
-      ]
-    }
-  ]
-}
+    # Get agent-specific data from library
+    agent_data = prompts.AGENT_PROMPTS.get(persona, prompts.AGENT_PROMPTS["Balanced"])
+
+    # Construct the final instruction set with injected grading rules
+    return f"""
+{prompts.BASE_INSTRUCTIONS}
+
+DETERMINISTIC GRADING RULES (REFERENCE TABLE - USE FOR EXACT LOOKUPS):
+{grading_rules}
+
+STYLE RULES FOR THIS AGENT ({persona.upper()}):
+{agent_data['instructions']}
 """
 
-# --- THE UI (Frontend) ---
-st.title("🧠 ATS Engine: Powered by Gemini 2.5 Flash")
+# --- 3B. VALIDATION ENGINE ---
+def validate_gpa_conversions(agent_results):
+    """
+    Validates that all GPA conversions match the deterministic grading standards.
+    Returns validation report with flagged anomalies.
+    """
+    # Load grading standards
+    try:
+        with open("grading_standards.json", "r") as f:
+            standards = json.load(f)
+    except FileNotFoundError:
+        return {"error": "grading_standards.json not found", "valid": False}
 
-col1, col2 = st.columns(2)
-with col1:
-    visa_status = st.selectbox("Target Visa Status", ["F-1 OPT (Stem)", "H-1B", "US Citizen"])
-with col2:
-    uploaded_file = st.file_uploader("Upload CV (PDF)", type="pdf")
+    # Extract valid GPA values from standards
+    valid_gpas = set()
+    for country, data in standards.get("Standards", {}).items():
+        for grade_range, gpa_value in data.get("mapping", {}).items():
+            # Handle both numeric and string GPA values
+            if isinstance(gpa_value, (int, float)):
+                valid_gpas.add(str(float(gpa_value)))
+            elif isinstance(gpa_value, str):
+                # Handle ranges like "3.5-4.0" or "3.5+"
+                if "-" in gpa_value:
+                    parts = gpa_value.split("-")
+                    valid_gpas.add(parts[0].strip())
+                    valid_gpas.add(parts[1].strip())
+                elif "+" in gpa_value:
+                    valid_gpas.add(gpa_value.replace("+", "").strip())
+                else:
+                    valid_gpas.add(gpa_value.strip())
 
-if uploaded_file and st.button("🚀 Process & Generate"):
-    
-    # 1. READ (Input)
-    with st.spinner("Reading PDF..."):
-        try:
-            uploaded_file.seek(0)
-            file_stream = io.BytesIO(uploaded_file.getvalue())
-            raw_text = ""
-            with pdfplumber.open(file_stream) as pdf:
-                for page in pdf.pages:
-                    raw_text += page.extract_text() + "\n"
-        except Exception as e:
-            st.error(f"Read Error: {e}")
-            st.stop()
+    # Validation report
+    report = {
+        "total_agents": len(agent_results),
+        "agents_checked": 0,
+        "invalid_gpas_found": [],
+        "valid": True
+    }
 
-    # 2. THINK (Process)
-    with st.spinner("Gemini is restructuring..."):
-        try:
-            model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
-            full_prompt = f"{SYSTEM_PROMPT}\nUSER STATUS: {visa_status}\nRESUME:\n{raw_text}"
-            response = model.generate_content(full_prompt)
-            ai_data = json.loads(response.text)
-            st.success("Analysis Complete!")
-        except Exception as e:
-            st.error(f"AI Error: {e}")
-            st.stop()
+    # Check each agent's output
+    for agent_name, data in agent_results.items():
+        if "error" in data:
+            continue
 
-    # 3. WRITE (Output)
-    st.subheader("🎉 Your US-Optimized Resume")
-    
-    # Generate the PDF in memory
-    pdf_bytes = generate_resume_pdf(ai_data)
-    
-    # Show Download Button
-    st.download_button(
-        label="📄 Download US-Standard PDF",
-        data=pdf_bytes,
-        file_name="Optimized_Resume.pdf",
-        mime="application/pdf",
-        type="primary"
+        report["agents_checked"] += 1
+
+        # Check education sections for GPA mentions
+        for section in data.get("sections", []):
+            if section.get("us_category") in ["Education"]:
+                content = section.get("content", [])
+
+                # Handle both list of objects and single objects
+                if isinstance(content, list):
+                    for entry in content:
+                        if isinstance(entry, dict):
+                            # Check in subheader (degree line) and bullets
+                            text_to_check = f"{entry.get('subheader', '')} {entry.get('header', '')} {' '.join(entry.get('bullets', []))}"
+
+                            # Extract GPA mentions using regex
+                            import re
+                            gpa_pattern = r'GPA[:\s]+([0-9.]+)'
+                            matches = re.findall(gpa_pattern, text_to_check, re.IGNORECASE)
+
+                            for gpa_value in matches:
+                                # Normalize to one decimal place for comparison
+                                normalized_gpa = f"{float(gpa_value):.1f}"
+
+                                # Check if this GPA is in our valid set
+                                if normalized_gpa not in valid_gpas and gpa_value not in valid_gpas:
+                                    report["invalid_gpas_found"].append({
+                                        "agent": agent_name,
+                                        "gpa": gpa_value,
+                                        "context": text_to_check[:100]
+                                    })
+                                    report["valid"] = False
+
+    return report
+
+# --- 4. THE PARALLEL ENGINE ---
+def run_agent(file_path, persona, visa_status):
+    """Runs a single Gemini agent with a specific persona."""
+    try:
+        # 1. Upload and WAIT for processing (Crucial Step)
+        gemini_file = genai.upload_file(file_path, mime_type="application/pdf")
+
+        # Loop until the file is ready with timeout protection
+        timeout = 30  # seconds
+        start_time = time.time()
+        while gemini_file.state.name == "PROCESSING":
+            if time.time() - start_time > timeout:
+                return persona, {"error": f"File processing timeout after {timeout}s"}
+            time.sleep(1)
+            gemini_file = genai.get_file(gemini_file.name)
+
+        if gemini_file.state.name == "FAILED":
+            return persona, {"error": "File processing failed on Google side."}
+
+        # 2. Generate with retry logic
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        prompt = get_system_prompt(persona)
+
+        response = retry_with_backoff(
+            lambda: model.generate_content([prompt, f"USER VISA: {visa_status}", gemini_file])
+        )
+
+        # 3. Clean and Parse JSON (Fixes the "Empty" issue)
+        raw_text = response.text
+        # Sometimes the model returns markdown code blocks, which breaks json.loads
+        clean_text = raw_text.replace("```json", "").replace("```", "").strip()
+
+        return persona, json.loads(clean_text)
+
+    except Exception as e:
+        # This will now show up in your Debug panel if something breaks
+        return persona, {"error": str(e)}
+
+# --- 5. ADMIN DASHBOARD ---
+def run_admin_dashboard():
+    st.header("📊 Training Data Control Tower")
+
+    file_path = "training_data.jsonl"
+
+    # 1. Check if data exists
+    if not os.path.exists(file_path):
+        st.warning("No training data found yet. Go to the App and vote for some resumes!")
+        return
+
+    # 2. Load Data
+    data = []
+    with open(file_path, "r") as f:
+        for line in f:
+            try:
+                data.append(json.loads(line))
+            except:
+                continue
+
+    if not data:
+        st.warning("No training data found yet!")
+        return
+
+    # 3. High-Level Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("📊 Total Samples", len(data))
+
+    # Calculate favorite personas
+    personas = [d['selected_variant'] for d in data]
+    from collections import Counter
+    persona_counts = Counter(personas)
+    fav_persona = persona_counts.most_common(1)[0][0]
+    col2.metric("🏆 Winningest Agent", fav_persona)
+
+    # Unique files
+    unique_files = len(set(d['filename'] for d in data))
+    col3.metric("📄 Unique CVs", unique_files)
+
+    last_active = data[-1]['timestamp']
+    col4.metric("🕐 Last Activity", last_active.split()[1])  # Show time only
+
+    st.divider()
+
+    # 3.5 VALIDATION METRICS
+    st.subheader("🛡️ GPA Validation Analytics")
+
+    # Analyze validation data across all samples
+    total_validations = 0
+    total_invalid_gpas = 0
+    agent_failure_counts = {"Conservative": 0, "Marketer": 0, "Balanced": 0}
+    invalid_gpa_values = []
+
+    for d in data:
+        val_report = d.get('validation_report', {})
+        if val_report:
+            total_validations += 1
+            invalid_gpas = val_report.get('invalid_gpas_found', [])
+            total_invalid_gpas += len(invalid_gpas)
+
+            for issue in invalid_gpas:
+                agent = issue.get('agent', 'Unknown')
+                if agent in agent_failure_counts:
+                    agent_failure_counts[agent] += 1
+                invalid_gpa_values.append(issue.get('gpa', 'Unknown'))
+
+    # Display validation metrics
+    col_val1, col_val2, col_val3 = st.columns(3)
+    col_val1.metric("✅ Total Validations", total_validations)
+    col_val2.metric("❌ Invalid GPAs Found", total_invalid_gpas)
+
+    if total_validations > 0:
+        validation_accuracy = ((total_validations - len([d for d in data if not d.get('validation_report', {}).get('valid', True)])) / total_validations) * 100
+        col_val3.metric("📊 Validation Pass Rate", f"{validation_accuracy:.1f}%")
+    else:
+        col_val3.metric("📊 Validation Pass Rate", "N/A")
+
+    # Agent failure breakdown
+    if total_invalid_gpas > 0:
+        st.markdown("**Agent Validation Failures:**")
+        col_agent1, col_agent2, col_agent3 = st.columns(3)
+
+        with col_agent1:
+            st.metric("Conservative", agent_failure_counts["Conservative"])
+        with col_agent2:
+            st.metric("Marketer", agent_failure_counts["Marketer"])
+        with col_agent3:
+            st.metric("Balanced", agent_failure_counts["Balanced"])
+
+        # Most common invalid GPAs
+        if invalid_gpa_values:
+            from collections import Counter
+            common_invalid = Counter(invalid_gpa_values).most_common(5)
+            st.markdown("**Most Common Invalid GPAs (Hallucinations):**")
+            for gpa, count in common_invalid:
+                st.text(f"  • GPA {gpa}: {count} occurrence(s)")
+    else:
+        st.success("🎉 Perfect record! No invalid GPAs detected across all tournaments.")
+
+    st.divider()
+
+    # 4. BIAS DETECTION ANALYTICS
+    st.subheader("🔍 Bias Detection Dashboard")
+
+    col_chart1, col_chart2 = st.columns(2)
+
+    with col_chart1:
+        st.markdown("**Agent Win Distribution**")
+        for agent, count in persona_counts.most_common():
+            percentage = (count / len(data)) * 100
+            st.progress(percentage / 100, text=f"{agent}: {count} wins ({percentage:.1f}%)")
+
+    with col_chart2:
+        st.markdown("**File Pattern Analysis**")
+        # Group by filename to detect biases
+        file_winners = {}
+        for d in data:
+            fname = d['filename']
+            if fname not in file_winners:
+                file_winners[fname] = []
+            file_winners[fname].append(d['selected_variant'])
+
+        # Show files with consistent winner (potential bias indicator)
+        st.markdown("*Files with consistent winner:*")
+        for fname, winners in file_winners.items():
+            if len(winners) > 1:
+                winner_counts = Counter(winners)
+                dominant = winner_counts.most_common(1)[0]
+                if dominant[1] == len(winners):  # All same winner
+                    st.warning(f"⚠️ `{fname}`: Always {dominant[0]}")
+
+    st.divider()
+
+    # 5. The Dataset (Enhanced Table View)
+    st.subheader("🗄️ Training History")
+
+    # Create enhanced display data
+    display_data = []
+    for i, d in enumerate(data):
+        display_data.append({
+            "Index": i + 1,
+            "Timestamp": d['timestamp'],
+            "Original File": d['filename'],
+            "Winner": d['selected_variant'],
+            "Contact Name": d['final_json'].get('contact_info', {}).get('name', 'N/A')
+        })
+
+    st.dataframe(display_data, use_container_width=True, height=300)
+
+    st.divider()
+
+    # 6. PDF ARCHIVE VIEWER
+    st.subheader("📂 Winning Resume Archive")
+
+    selected_index = st.selectbox(
+        "Select a sample to view:",
+        options=range(len(data)),
+        format_func=lambda i: f"#{i+1} - {data[i]['filename']} → {data[i]['selected_variant']} ({data[i]['timestamp']})"
     )
-    
-    # Show Debug Data below
-    with st.expander("See Extracted Data (Debug)"):
-        st.json(ai_data)
+
+    if selected_index is not None:
+        record = data[selected_index]
+
+        col_info, col_preview = st.columns([1, 2])
+
+        with col_info:
+            st.markdown("**Sample Details:**")
+            st.json({
+                "Index": selected_index + 1,
+                "Timestamp": record['timestamp'],
+                "Original File": record['filename'],
+                "Winning Agent": record['selected_variant'],
+                "Candidate": record['final_json'].get('contact_info', {}).get('name', 'N/A')
+            })
+
+        with col_preview:
+            st.markdown(f"**Winning Resume PDF ({record['selected_variant']})**")
+            # Generate the winning PDF
+            winning_pdf = generate_dynamic_pdf(record['final_json'])
+            display_pdf(winning_pdf, height=600)
+
+    st.divider()
+
+    # 7. DATA MANAGEMENT CONTROLS
+    st.subheader("🛠️ Training Data Management")
+
+    col_mgmt1, col_mgmt2 = st.columns(2)
+
+    with col_mgmt1:
+        st.markdown("**Export Dataset**")
+        jsonl_str = "\n".join([json.dumps(d) for d in data])
+        st.download_button(
+            label="💾 Download Full Dataset (.jsonl)",
+            data=jsonl_str,
+            file_name="full_training_data.jsonl",
+            mime="application/json",
+            use_container_width=True,
+            type="primary"
+        )
+
+    with col_mgmt2:
+        st.markdown("**Delete Data**")
+        if st.button("🗑️ Clear All Training Data", use_container_width=True, type="secondary"):
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                st.success("✅ All training data deleted! Starting fresh.")
+                st.rerun()
+
+    st.markdown("---")
+
+    # Delete individual samples
+    st.markdown("**Delete Individual Sample**")
+    col_del1, col_del2 = st.columns([3, 1])
+
+    with col_del1:
+        delete_index = st.selectbox(
+            "Select sample to delete:",
+            options=range(len(data)),
+            format_func=lambda i: f"#{i+1} - {data[i]['filename']} → {data[i]['selected_variant']}"
+        )
+
+    with col_del2:
+        st.markdown("")  # Spacer
+        st.markdown("")  # Spacer
+        if st.button("🗑️ Delete", key="delete_individual"):
+            # Remove the selected sample
+            data.pop(delete_index)
+            # Rewrite the file
+            with open(file_path, "w") as f:
+                for entry in data:
+                    f.write(json.dumps(entry) + "\n")
+            st.success(f"✅ Sample #{delete_index + 1} deleted!")
+            st.rerun()
+
+# --- 6. MAIN APP ROUTING ---
+# Sidebar Navigation
+page = st.sidebar.selectbox("Navigate", ["🏆 Tournament Mode", "📊 Admin Dashboard"])
+
+if page == "📊 Admin Dashboard":
+    run_admin_dashboard()
+
+else:
+    # === TOURNAMENT MODE ===
+    st.title("🏆 Global ATS Bridge: The Tournament")
+
+    # Processing Mode Selector
+    processing_mode = st.radio("Processing Mode", ["📄 Single CV", "📚 Bulk Set"], horizontal=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        visa_status = st.selectbox("Target Visa Status", ["F-1 OPT (Stem)", "H-1B", "US Citizen"])
+    with col2:
+        if processing_mode == "📄 Single CV":
+            uploaded_file = st.file_uploader("Upload CV (PDF)", type="pdf")
+        else:
+            uploaded_files = st.file_uploader("Upload CVs (PDF)", type="pdf", accept_multiple_files=True)
+
+    # Session State for storing results across reruns
+    # Single mode states
+    if "results" not in st.session_state:
+        st.session_state.results = None
+    if "original_filename" not in st.session_state:
+        st.session_state.original_filename = ""
+    if "selected_variant" not in st.session_state:
+        st.session_state.selected_variant = None
+    if "original_pdf_bytes" not in st.session_state:
+        st.session_state.original_pdf_bytes = None
+    if "validation_report" not in st.session_state:
+        st.session_state.validation_report = None
+
+    # Bulk mode states
+    if "bulk_results" not in st.session_state:
+        st.session_state.bulk_results = {}  # {filename: {Conservative: {...}, Marketer: {...}, Balanced: {...}}}
+    if "bulk_selections" not in st.session_state:
+        st.session_state.bulk_selections = {}  # {filename: "agent_name"}
+    if "bulk_validation_reports" not in st.session_state:
+        st.session_state.bulk_validation_reports = {}  # {filename: {...}}
+    if "bulk_original_pdfs" not in st.session_state:
+        st.session_state.bulk_original_pdfs = {}  # {filename: bytes}
+    if "current_cv_index" not in st.session_state:
+        st.session_state.current_cv_index = 0
+    if "bulk_filenames" not in st.session_state:
+        st.session_state.bulk_filenames = []  # Ordered list of filenames
+
+    # === SINGLE CV MODE ===
+    if processing_mode == "📄 Single CV":
+        if uploaded_file and st.button("🚀 Start Tournament"):
+            # Validate file size (20MB limit for Gemini)
+            file_size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
+            if file_size_mb > 20:
+                st.error(f"❌ File too large ({file_size_mb:.1f}MB). Max: 20MB")
+                st.stop()
+
+            # Reset state for new tournament
+            st.session_state.results = {}
+            st.session_state.original_filename = uploaded_file.name
+            st.session_state.selected_variant = None
+            # Store original PDF for comparison
+            st.session_state.original_pdf_bytes = uploaded_file.getvalue()
+
+            # 1. Save Temp File for Vision
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(uploaded_file.getvalue())
+                tmp_path = tmp.name
+
+            try:
+                # 2. Parallel Execution
+                personas = ["Conservative", "Marketer", "Balanced"]
+                status_text = st.empty()
+                status_text.info("⚡ Agents are running in parallel... (Gemini 2.5 Vision)")
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    futures = {executor.submit(run_agent, tmp_path, p, visa_status): p for p in personas}
+
+                    for future in concurrent.futures.as_completed(futures):
+                        persona, data = future.result()
+                        st.session_state.results[persona] = data
+
+                # Run GPA validation on all results
+                st.session_state.validation_report = validate_gpa_conversions(st.session_state.results)
+
+                # Show completion message with validation status
+                if st.session_state.validation_report.get("valid", True):
+                    status_text.success("✅ Tournament Complete! All GPAs validated successfully.")
+                else:
+                    invalid_count = len(st.session_state.validation_report.get("invalid_gpas_found", []))
+                    status_text.warning(f"⚠️ Tournament Complete! Found {invalid_count} invalid GPA(s). Check validation panel below.")
+
+            finally:
+                # Cleanup (guaranteed to run even if errors occur)
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+
+    # === BULK CV MODE ===
+    else:
+        if uploaded_files and st.button("🚀 Start Bulk Tournament"):
+            # Validate all file sizes
+            invalid_files = []
+            for file in uploaded_files:
+                file_size_mb = len(file.getvalue()) / (1024 * 1024)
+                if file_size_mb > 20:
+                    invalid_files.append(f"{file.name} ({file_size_mb:.1f}MB)")
+
+            if invalid_files:
+                st.error(f"❌ Files too large (Max 20MB each):\n" + "\n".join(f"- {f}" for f in invalid_files))
+                st.stop()
+
+            # Reset bulk state
+            st.session_state.bulk_results = {}
+            st.session_state.bulk_selections = {}
+            st.session_state.bulk_validation_reports = {}
+            st.session_state.bulk_original_pdfs = {}
+            st.session_state.bulk_filenames = [f.name for f in uploaded_files]
+            st.session_state.current_cv_index = 0
+
+            # Process all PDFs
+            personas = ["Conservative", "Marketer", "Balanced"]
+            total_files = len(uploaded_files)
+
+            # Create progress tracking
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+
+            for idx, uploaded_file in enumerate(uploaded_files):
+                filename = uploaded_file.name
+                status_text.info(f"⚡ Processing {idx + 1}/{total_files}: {filename}...")
+
+                # Store original PDF
+                st.session_state.bulk_original_pdfs[filename] = uploaded_file.getvalue()
+
+                # Save temp file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(uploaded_file.getvalue())
+                    tmp_path = tmp.name
+
+                try:
+                    # Run agents in parallel for this CV
+                    cv_results = {}
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        futures = {executor.submit(run_agent, tmp_path, p, visa_status): p for p in personas}
+
+                        for future in concurrent.futures.as_completed(futures):
+                            persona, data = future.result()
+                            cv_results[persona] = data
+
+                    # Store results
+                    st.session_state.bulk_results[filename] = cv_results
+
+                    # Run validation
+                    st.session_state.bulk_validation_reports[filename] = validate_gpa_conversions(cv_results)
+
+                finally:
+                    # Cleanup temp file
+                    if os.path.exists(tmp_path):
+                        os.remove(tmp_path)
+
+                # Update progress
+                progress_bar.progress((idx + 1) / total_files)
+
+            # Completion message
+            status_text.success(f"✅ Bulk Tournament Complete! Processed {total_files} CVs. Review and select winners below.")
+            progress_bar.empty()
+
+    # --- 7. DISPLAY RESULTS ---
+    # === SINGLE CV DISPLAY ===
+    if processing_mode == "📄 Single CV" and st.session_state.results:
+        r = st.session_state.results
+
+        # Build tab names with validation status indicators
+        validation_report = st.session_state.get('validation_report', {})
+        invalid_gpas = validation_report.get('invalid_gpas_found', [])
+
+        # Create dict of agent -> has_invalid_gpa
+        agent_validation_status = {}
+        for agent_name in ["Conservative", "Marketer", "Balanced"]:
+            has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
+            agent_validation_status[agent_name] = has_invalid
+
+        # Build tab names with status indicators
+        tab_names = ["📋 Original CV"]
+        for agent in ["Conservative", "Marketer", "Balanced"]:
+            if agent_validation_status.get(agent, False):
+                tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
+            else:
+                tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
+
+        # Use TABS: Original CV + 3 Generated Versions
+        tab0, tab1, tab2, tab3 = st.tabs(tab_names)
+
+        # ORIGINAL CV TAB
+        with tab0:
+            st.markdown("### 📋 Original Uploaded Resume")
+            if st.session_state.original_pdf_bytes:
+                # Display original PDF from session state
+                original_buffer = io.BytesIO(st.session_state.original_pdf_bytes)
+                display_pdf(original_buffer, height=1200)
+            else:
+                st.warning("Original PDF not found in session state.")
+
+        # GENERATED RESUMES TABS
+        tabs = [tab1, tab2, tab3]
+        keys = ["Conservative", "Marketer", "Balanced"]
+
+        for i, key in enumerate(keys):
+            with tabs[i]:
+                data = r.get(key, {})
+
+                # Check for errors first
+                if "error" in data:
+                    st.error(f"❌ {key} Failed:\n{data['error']}")
+                    continue  # Skip the rest for this agent
+
+                # Full PDF Preview (Full Width!)
+                st.markdown(f"### 📄 {key} Resume Preview")
+                pdf_preview = generate_dynamic_pdf(data)
+                display_pdf(pdf_preview, height=1200)  # Extra tall for better visibility
+
+                st.markdown("---")
+
+                # SELECT BUTTON (Prominent and centered)
+                col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+                with col_btn2:
+                    if st.button(f"✅ Select {key} as Winner", key=f"btn_{key}", type="primary", use_container_width=True):
+                        st.session_state.selected_variant = key
+                        # Log Data (Flywheel) with validation report
+                        validation_report = st.session_state.get('validation_report', None)
+                        save_training_data(st.session_state.original_filename, key, data, validation_report)
+                        st.toast(f"✅ {key} selected! Training data saved.")
+                        st.rerun()  # Refresh to show download button
+
+        # Show Download Section AFTER Selection
+        if st.session_state.selected_variant:
+            st.markdown("---")
+            st.success(f"🎯 You selected: **{st.session_state.selected_variant}**")
+
+            selected_data = r.get(st.session_state.selected_variant, {})
+            if "error" not in selected_data:
+                pdf_bytes = generate_dynamic_pdf(selected_data)
+
+                col_download, col_reset = st.columns([3, 1])
+                with col_download:
+                    st.download_button(
+                        label=f"⬇️ Download {st.session_state.selected_variant} Resume PDF",
+                        data=pdf_bytes,
+                        file_name=f"Resume_{st.session_state.selected_variant}.pdf",
+                        mime="application/pdf",
+                        type="primary",
+                        use_container_width=True
+                    )
+                with col_reset:
+                    if st.button("🔄 Reset", use_container_width=True):
+                        st.session_state.selected_variant = None
+                        st.rerun()
+
+        # VALIDATION REPORT PANEL
+        validation_report = st.session_state.get('validation_report', {})
+        if validation_report and not validation_report.get('valid', True):
+            st.markdown("---")
+            with st.expander("⚠️ GPA Validation Report - Invalid GPAs Detected", expanded=True):
+                st.warning(f"**Found {len(validation_report.get('invalid_gpas_found', []))} invalid GPA(s)** that don't match the authoritative grading standards.")
+
+                invalid_gpas = validation_report.get('invalid_gpas_found', [])
+
+                for idx, issue in enumerate(invalid_gpas, 1):
+                    st.markdown(f"**Issue #{idx}:**")
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        st.metric("Agent", issue['agent'])
+                        st.metric("Invalid GPA", issue['gpa'])
+                    with col2:
+                        st.text_area(
+                            "Context (where it appeared)",
+                            value=issue['context'],
+                            height=100,
+                            key=f"context_{idx}",
+                            disabled=True
+                        )
+                    st.markdown("---")
+
+                st.info("💡 **Why this matters:** These GPAs don't exist in the deterministic grading standards (grading_standards.json). The AI may have hallucinated or miscalculated the conversion. Review these carefully before selecting a winner.")
+
+        with st.expander("🔍 Debug: See Raw JSON for all Agents"):
+            st.json(st.session_state.results)
+
+        # START NEW TOURNAMENT BUTTON
+        st.markdown("---")
+        col_new_1, col_new_2, col_new_3 = st.columns([1, 2, 1])
+        with col_new_2:
+            if st.button("🔄 Start New Tournament", type="primary", use_container_width=True):
+                # Clear all session state
+                st.session_state.results = None
+                st.session_state.selected_variant = None
+                st.session_state.original_filename = ""
+                st.session_state.original_pdf_bytes = None
+                st.rerun()
+
+    # === BULK CV DISPLAY (CAROUSEL MODE) ===
+    elif processing_mode == "📚 Bulk Set" and st.session_state.bulk_filenames:
+        total_cvs = len(st.session_state.bulk_filenames)
+        current_idx = st.session_state.current_cv_index
+        current_filename = st.session_state.bulk_filenames[current_idx]
+
+        # Progress Header
+        st.markdown("---")
+        col_progress1, col_progress2, col_progress3 = st.columns([1, 2, 1])
+
+        with col_progress1:
+            voted_count = len(st.session_state.bulk_selections)
+            st.metric("Progress", f"{voted_count}/{total_cvs} Voted")
+
+        with col_progress2:
+            st.markdown(f"### 📄 CV {current_idx + 1}/{total_cvs}: `{current_filename}`")
+
+        with col_progress3:
+            # Show if current CV has been voted
+            if current_filename in st.session_state.bulk_selections:
+                st.success(f"✅ Voted: {st.session_state.bulk_selections[current_filename]}")
+            else:
+                st.warning("⏳ Not voted yet")
+
+        # Progress bar
+        progress_percentage = voted_count / total_cvs
+        st.progress(progress_percentage, text=f"{voted_count}/{total_cvs} CVs completed")
+
+        st.markdown("---")
+
+        # Get current CV results
+        r = st.session_state.bulk_results.get(current_filename, {})
+
+        if not r:
+            st.error(f"❌ No results found for {current_filename}")
+        else:
+            # Build tab names with validation status indicators
+            validation_report = st.session_state.bulk_validation_reports.get(current_filename, {})
+            invalid_gpas = validation_report.get('invalid_gpas_found', [])
+
+            # Create dict of agent -> has_invalid_gpa
+            agent_validation_status = {}
+            for agent_name in ["Conservative", "Marketer", "Balanced"]:
+                has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
+                agent_validation_status[agent_name] = has_invalid
+
+            # Build tab names with status indicators
+            tab_names = ["📋 Original CV"]
+            for agent in ["Conservative", "Marketer", "Balanced"]:
+                if agent_validation_status.get(agent, False):
+                    tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
+                else:
+                    tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
+
+            # Use TABS: Original CV + 3 Generated Versions
+            tab0, tab1, tab2, tab3 = st.tabs(tab_names)
+
+            # ORIGINAL CV TAB
+            with tab0:
+                st.markdown("### 📋 Original Uploaded Resume")
+                original_bytes = st.session_state.bulk_original_pdfs.get(current_filename)
+                if original_bytes:
+                    original_buffer = io.BytesIO(original_bytes)
+                    display_pdf(original_buffer, height=1200)
+                else:
+                    st.warning("Original PDF not found.")
+
+            # GENERATED RESUMES TABS
+            tabs = [tab1, tab2, tab3]
+            keys = ["Conservative", "Marketer", "Balanced"]
+
+            for i, key in enumerate(keys):
+                with tabs[i]:
+                    data = r.get(key, {})
+
+                    # Check for errors first
+                    if "error" in data:
+                        st.error(f"❌ {key} Failed:\n{data['error']}")
+                        continue  # Skip the rest for this agent
+
+                    # Full PDF Preview (Full Width!)
+                    st.markdown(f"### 📄 {key} Resume Preview")
+                    pdf_preview = generate_dynamic_pdf(data)
+                    display_pdf(pdf_preview, height=1200)
+
+                    st.markdown("---")
+
+                    # SELECT BUTTON (Prominent and centered)
+                    col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+                    with col_btn2:
+                        # Check if this agent is already selected
+                        current_selection = st.session_state.bulk_selections.get(current_filename)
+                        button_type = "primary" if current_selection == key else "secondary"
+                        button_label = f"✅ Selected: {key}" if current_selection == key else f"Select {key} as Winner"
+
+                        if st.button(button_label, key=f"bulk_btn_{current_filename}_{key}", type=button_type, use_container_width=True):
+                            # Save selection
+                            st.session_state.bulk_selections[current_filename] = key
+                            # Log Data (Flywheel) with validation report
+                            save_training_data(current_filename, key, data, validation_report)
+                            st.toast(f"✅ {key} selected for {current_filename}!")
+                            st.rerun()
+
+            # VALIDATION REPORT PANEL
+            if validation_report and not validation_report.get('valid', True):
+                st.markdown("---")
+                with st.expander("⚠️ GPA Validation Report - Invalid GPAs Detected", expanded=True):
+                    st.warning(f"**Found {len(validation_report.get('invalid_gpas_found', []))} invalid GPA(s)** that don't match the authoritative grading standards.")
+
+                    invalid_gpas = validation_report.get('invalid_gpas_found', [])
+
+                    for idx, issue in enumerate(invalid_gpas, 1):
+                        st.markdown(f"**Issue #{idx}:**")
+                        col1, col2 = st.columns([1, 3])
+                        with col1:
+                            st.metric("Agent", issue['agent'])
+                            st.metric("Invalid GPA", issue['gpa'])
+                        with col2:
+                            st.text_area(
+                                "Context (where it appeared)",
+                                value=issue['context'],
+                                height=100,
+                                key=f"bulk_context_{current_filename}_{idx}",
+                                disabled=True
+                            )
+                        st.markdown("---")
+
+                    st.info("💡 **Why this matters:** These GPAs don't exist in the deterministic grading standards (grading_standards.json). The AI may have hallucinated or miscalculated the conversion. Review these carefully before selecting a winner.")
+
+            # NAVIGATION CONTROLS
+            st.markdown("---")
+            col_nav1, col_nav2, col_nav3, col_nav4 = st.columns([1, 1, 1, 1])
+
+            with col_nav1:
+                if current_idx > 0:
+                    if st.button("⬅️ Previous CV", use_container_width=True):
+                        st.session_state.current_cv_index -= 1
+                        st.rerun()
+                else:
+                    st.button("⬅️ Previous CV", use_container_width=True, disabled=True)
+
+            with col_nav2:
+                # Show list of all CVs with checkmarks
+                if st.button("📋 View All CVs", use_container_width=True):
+                    with st.expander("All CVs in Set", expanded=True):
+                        for idx, fname in enumerate(st.session_state.bulk_filenames):
+                            status = "✅" if fname in st.session_state.bulk_selections else "⏳"
+                            selected_agent = st.session_state.bulk_selections.get(fname, "Not voted")
+                            st.text(f"{status} {idx + 1}. {fname} → {selected_agent}")
+
+            with col_nav3:
+                # Next button - only enabled if current CV has selection
+                has_selection = current_filename in st.session_state.bulk_selections
+
+                if current_idx < total_cvs - 1:
+                    if has_selection:
+                        if st.button("Next CV ➡️", use_container_width=True, type="primary"):
+                            st.session_state.current_cv_index += 1
+                            st.rerun()
+                    else:
+                        st.button("Next CV ➡️", use_container_width=True, disabled=True)
+                        st.caption("⚠️ Select a winner first")
+                else:
+                    st.button("Next CV ➡️", use_container_width=True, disabled=True)
+
+            with col_nav4:
+                # Finish button - only enabled if all CVs voted
+                all_voted = len(st.session_state.bulk_selections) == total_cvs
+
+                if all_voted:
+                    if st.button("🎉 Finish Set", use_container_width=True, type="primary"):
+                        st.balloons()
+                        st.success(f"🎉 Congratulations! You've completed all {total_cvs} CVs in this set!")
+                        st.info(f"📊 Training data saved for {total_cvs} samples. Check the Admin Dashboard to review.")
+                        # Optionally clear bulk state
+                        if st.button("🔄 Start New Bulk Set"):
+                            st.session_state.bulk_results = {}
+                            st.session_state.bulk_selections = {}
+                            st.session_state.bulk_validation_reports = {}
+                            st.session_state.bulk_original_pdfs = {}
+                            st.session_state.bulk_filenames = []
+                            st.session_state.current_cv_index = 0
+                            st.rerun()
+                else:
+                    st.button("🎉 Finish Set", use_container_width=True, disabled=True)
+                    st.caption(f"⚠️ {total_cvs - len(st.session_state.bulk_selections)} CVs left")
