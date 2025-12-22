@@ -7,10 +7,13 @@ import os
 import time
 import base64
 import concurrent.futures
+from collections import Counter
+import re
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 import prompts  # Prompt library for agent personas
+import metrics  # Comprehensive quality metrics
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Global ATS Bridge (V3 Tournament)", layout="wide")
@@ -27,6 +30,67 @@ def retry_with_backoff(func, max_retries=3):
             wait_time = 2 ** attempt  # 1s, 2s, 4s
             time.sleep(wait_time)
 
+# --- FIDELITY CHECKSUM ---
+def verify_fidelity(original_pdf_path, optimized_json):
+    """
+    Checksum to ensure no data loss during AI reordering.
+    Checks if original professional keywords exist in the new JSON.
+
+    Args:
+        original_pdf_path: Path to original PDF file
+        optimized_json: Transformed JSON output from agent
+
+    Returns:
+        dict with is_safe, loss_percentage, flagged_words
+    """
+    # 1. Extract text from original PDF using Gemini
+    try:
+        pdf_file = genai.upload_file(original_pdf_path)
+        time.sleep(1)  # Wait for file processing
+
+        # Simple extraction prompt
+        extraction_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        extract_prompt = "Extract all text from this PDF exactly as written. Return only the raw text, no formatting."
+        response = extraction_model.generate_content([extract_prompt, pdf_file])
+        original_text = response.text
+
+        # Cleanup
+        pdf_file.delete()
+    except Exception as e:
+        # If extraction fails, skip validation
+        return {
+            "is_safe": True,
+            "loss_percentage": 0.0,
+            "flagged_words": [],
+            "error": f"Could not extract original text: {str(e)}"
+        }
+
+    # 2. Normalize and extract tokens (excluding common stop words)
+    def get_tokens(text):
+        words = re.findall(r'\w+', str(text).lower())
+        # Filter out very short words/numbers to focus on "Experience" keywords
+        stop_words = {'the', 'and', 'for', 'with', 'from', 'this', 'that', 'have', 'has', 'was', 'were', 'been'}
+        return [w for w in words if len(w) > 3 and w not in stop_words]
+
+    original_tokens = Counter(get_tokens(original_text))
+    optimized_tokens = Counter(get_tokens(optimized_json))
+
+    # 3. Compare intersection
+    missing_tokens = []
+    for word, count in original_tokens.items():
+        if optimized_tokens[word] < count:
+            missing_tokens.append(word)
+
+    # 4. Calculate "Loss Ratio"
+    # We allow some loss for formatting/stop words, but >10% is a red flag
+    loss_ratio = len(missing_tokens) / len(original_tokens) if original_tokens else 0
+
+    return {
+        "is_safe": loss_ratio < 0.10,
+        "loss_percentage": round(loss_ratio * 100, 2),
+        "flagged_words": missing_tokens[:5]  # Show first 5 missing for debugging
+    }
+
 # Initialize Gemini
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
@@ -35,7 +99,7 @@ except Exception:
     st.stop()
 
 # --- 1. THE LOGGER (FLYWHEEL) ---
-def save_training_data(original_filename, selected_variant, final_json, validation_report=None, session_id=None, processing_mode="single"):
+def save_training_data(original_filename, selected_variant, final_json, validation_report=None, session_id=None, processing_mode="single", comprehensive_metrics=None):
     """Saves the user's preference to a local JSONL file for future fine-tuning."""
     log_entry = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -44,7 +108,8 @@ def save_training_data(original_filename, selected_variant, final_json, validati
         "filename": original_filename,
         "selected_variant": selected_variant,
         "final_json": final_json,
-        "validation_report": validation_report if validation_report else {"valid": True, "invalid_gpas_found": []}
+        "validation_report": validation_report if validation_report else {"valid": True, "invalid_gpas_found": []},
+        "comprehensive_metrics": comprehensive_metrics if comprehensive_metrics else {}
     }
     with open("training_data.jsonl", "a") as f:
         f.write(json.dumps(log_entry) + "\n")
@@ -63,6 +128,120 @@ def display_pdf(pdf_bytes, height=1000):
         </iframe>
     '''
     st.markdown(pdf_display, unsafe_allow_html=True)
+
+# --- 2A2. COMPREHENSIVE METRICS DISPLAY HELPER ---
+def display_comprehensive_metrics(metrics_report, agent_name):
+    """Displays comprehensive quality metrics in an expandable panel."""
+    if not metrics_report or "error" in metrics_report:
+        st.warning(f"⚠️ Metrics unavailable for {agent_name}")
+        if "error" in metrics_report:
+            st.caption(f"Error: {metrics_report.get('error', 'Unknown')}")
+        return
+
+    # Overall score header
+    overall = metrics_report.get('overall_score', 0)
+    grade = metrics_report.get('grade', 'F')
+    status = metrics_report.get('overall_status', '❌')
+
+    with st.expander(f"📊 Quality Metrics: {overall:.2f} ({grade}) {status}", expanded=False):
+        # Create metrics grid
+        col1, col2, col3, col4 = st.columns(4)
+
+        metrics_data = metrics_report.get('metrics', {})
+
+        # Row 1: Core metrics
+        with col1:
+            bp = metrics_data.get('bullet_preservation', {})
+            st.metric(
+                "Bullet Preservation",
+                f"{bp.get('preservation_ratio', 0):.0%}",
+                delta=None,
+                help=f"Original: {bp.get('original_count', 0)} → Output: {bp.get('output_count', 0)}"
+            )
+            st.caption(f"{bp.get('status', '❌')} Score: {bp.get('score', 0):.2f}")
+
+        with col2:
+            ji = metrics_data.get('json_integrity', {})
+            st.metric(
+                "JSON Integrity",
+                f"{ji.get('total_issues', 0)} issues",
+                delta=None,
+                help="Checks for malformed JSON strings and line breaks"
+            )
+            st.caption(f"{ji.get('status', '❌')} Score: {ji.get('score', 0):.2f}")
+
+        with col3:
+            pd = metrics_data.get('phantom_detection', {})
+            st.metric(
+                "Phantom Sections",
+                f"{pd.get('count', 0)} found",
+                delta=None,
+                help="Empty sections that should be omitted"
+            )
+            st.caption(f"{pd.get('status', '❌')} Score: {pd.get('score', 0):.2f}")
+
+        with col4:
+            sc = metrics_data.get('structural_compliance', {})
+            st.metric(
+                "Structure",
+                "Compliant" if sc.get('compliant', False) else "Non-Compliant",
+                delta=None,
+                help="Summary → Experience → Education → Skills"
+            )
+            st.caption(f"{sc.get('status', '❌')} Score: {sc.get('score', 0):.2f}")
+
+        # Row 2: Quality metrics
+        col5, col6, col7, col8 = st.columns(4)
+
+        with col5:
+            tq = metrics_data.get('translation_quality', {})
+            st.metric(
+                "Translation Quality",
+                f"{tq.get('quality_score', 0):.0%}",
+                delta=None,
+                help="Checks for professional English & untranslated text"
+            )
+            st.caption(f"{tq.get('status', '❌')} Score: {tq.get('score', 0):.2f}")
+
+        with col6:
+            fc = metrics_data.get('field_coverage', {})
+            st.metric(
+                "Field Coverage",
+                f"{fc.get('coverage_ratio', 0):.0%}",
+                delta=None,
+                help=f"Present: {', '.join(fc.get('present_fields', []))}"
+            )
+            st.caption(f"{fc.get('status', '❌')} Score: {fc.get('score', 0):.2f}")
+
+        with col7:
+            sd = metrics_data.get('section_density', {})
+            st.metric(
+                "Avg Bullets/Entry",
+                f"{sd.get('avg_bullets_per_entry', 0):.1f}",
+                delta=None,
+                help=f"{sd.get('total_bullets', 0)} bullets across {sd.get('total_entries', 0)} entries"
+            )
+            st.caption(f"{sd.get('status', '❌')} Score: {sd.get('score', 0):.2f}")
+
+        with col8:
+            st.metric(
+                "Overall Grade",
+                grade,
+                delta=None,
+                help=f"Weighted score: {overall:.2f}"
+            )
+            st.caption(f"{status} Composite")
+
+        # Detailed issues if any
+        if ji.get('issues'):
+            st.markdown("**JSON Integrity Issues:**")
+            for issue in ji.get('issues', [])[:5]:
+                st.text(f"  • {issue.get('issue', 'Unknown')} at {issue.get('path', 'Unknown')}")
+
+        if pd.get('phantom_sections'):
+            st.markdown("**Phantom Sections Found:**")
+            for phantom in pd.get('phantom_sections', [])[:5]:
+                st.text(f"  • {phantom.get('section', 'Unknown')}: {phantom.get('issue', 'Unknown')}")
 
 # --- 2B. THE HANDS: DYNAMIC PDF GENERATOR ---
 def generate_dynamic_pdf(data):
@@ -280,7 +459,7 @@ def validate_gpa_conversions(agent_results):
 
 # --- 4. THE PARALLEL ENGINE ---
 def run_agent(file_path, persona, visa_status):
-    """Runs a single Gemini agent with a specific persona."""
+    """Runs a single Gemini agent with a specific persona, fidelity check, and comprehensive metrics."""
     try:
         # 1. Upload and WAIT for processing (Crucial Step)
         gemini_file = genai.upload_file(file_path, mime_type="application/pdf")
@@ -290,12 +469,12 @@ def run_agent(file_path, persona, visa_status):
         start_time = time.time()
         while gemini_file.state.name == "PROCESSING":
             if time.time() - start_time > timeout:
-                return persona, {"error": f"File processing timeout after {timeout}s"}
+                return persona, {"error": f"File processing timeout after {timeout}s"}, None, None
             time.sleep(1)
             gemini_file = genai.get_file(gemini_file.name)
 
         if gemini_file.state.name == "FAILED":
-            return persona, {"error": "File processing failed on Google side."}
+            return persona, {"error": "File processing failed on Google side."}, None, None
 
         # 2. Generate with retry logic
         model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
@@ -309,12 +488,37 @@ def run_agent(file_path, persona, visa_status):
         raw_text = response.text
         # Sometimes the model returns markdown code blocks, which breaks json.loads
         clean_text = raw_text.replace("```json", "").replace("```", "").strip()
+        result_json = json.loads(clean_text)
 
-        return persona, json.loads(clean_text)
+        # 4. Run Fidelity Check (Legacy metric)
+        fidelity_report = verify_fidelity(file_path, result_json)
+
+        # 5. Extract original text for comprehensive metrics
+        try:
+            extract_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            extract_prompt = "Extract all text from this PDF exactly as written. Return only the raw text, no formatting."
+            extract_file = genai.upload_file(file_path, mime_type="application/pdf")
+            time.sleep(1)
+            extract_response = extract_model.generate_content([extract_prompt, extract_file])
+            original_text = extract_response.text
+            extract_file.delete()
+
+            # 6. Run Comprehensive Metrics
+            comprehensive_metrics = metrics.run_all_metrics(original_text, result_json)
+        except Exception as metrics_error:
+            # If metrics fail, continue with empty report
+            comprehensive_metrics = {
+                "error": str(metrics_error),
+                "overall_score": 0.0,
+                "overall_status": "❌",
+                "grade": "F"
+            }
+
+        return persona, result_json, fidelity_report, comprehensive_metrics
 
     except Exception as e:
         # This will now show up in your Debug panel if something breaks
-        return persona, {"error": str(e)}
+        return persona, {"error": str(e)}, None, None
 
 # --- 5. ADMIN DASHBOARD ---
 def run_admin_dashboard():
@@ -429,7 +633,7 @@ def run_admin_dashboard():
     # Analyze validation data across all samples
     total_validations = 0
     total_invalid_gpas = 0
-    agent_failure_counts = {"Conservative": 0, "Strategist": 0}
+    agent_failure_counts = {"Conservative": 0, "Strategist": 0, "Hybrid_Auditor": 0}
     invalid_gpa_values = []
 
     for d in data:
@@ -459,12 +663,14 @@ def run_admin_dashboard():
     # Agent failure breakdown
     if total_invalid_gpas > 0:
         st.markdown("**Agent Validation Failures:**")
-        col_agent1, col_agent2 = st.columns(2)
+        col_agent1, col_agent2, col_agent3 = st.columns(3)
 
         with col_agent1:
             st.metric("Conservative", agent_failure_counts["Conservative"])
         with col_agent2:
             st.metric("Strategist", agent_failure_counts["Strategist"])
+        with col_agent3:
+            st.metric("Hybrid_Auditor", agent_failure_counts["Hybrid_Auditor"])
 
         # Most common invalid GPAs
         if invalid_gpa_values:
@@ -475,6 +681,117 @@ def run_admin_dashboard():
                 st.text(f"  • GPA {gpa}: {count} occurrence(s)")
     else:
         st.success("🎉 Perfect record! No invalid GPAs detected across all tournaments.")
+
+    st.divider()
+
+    # 3.7 COMPREHENSIVE METRICS ANALYTICS
+    st.subheader("📈 Comprehensive Quality Metrics Analytics")
+
+    # Analyze comprehensive metrics across all samples
+    samples_with_metrics = [d for d in data if d.get('comprehensive_metrics')]
+
+    if len(samples_with_metrics) > 0:
+        st.markdown(f"**Samples with Metrics:** {len(samples_with_metrics)}/{len(data)}")
+
+        # Calculate average metrics by agent
+        agent_metrics = {"Conservative": [], "Strategist": [], "Hybrid_Auditor": []}
+
+        for d in samples_with_metrics:
+            agent = d.get('selected_variant', 'Unknown')
+            metrics_data = d.get('comprehensive_metrics', {})
+
+            if agent in agent_metrics and metrics_data.get('overall_score'):
+                agent_metrics[agent].append(metrics_data)
+
+        # Display metrics comparison
+        col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
+
+        for idx, (agent, metrics_list) in enumerate(agent_metrics.items()):
+            col = [col_metrics1, col_metrics2, col_metrics3][idx]
+
+            with col:
+                st.markdown(f"**{agent}**")
+
+                if len(metrics_list) > 0:
+                    # Calculate averages
+                    avg_overall = sum(m.get('overall_score', 0) for m in metrics_list) / len(metrics_list)
+                    avg_grade = metrics.get_letter_grade(avg_overall)  # Using the metrics module function
+
+                    st.metric("Avg Overall Score", f"{avg_overall:.2f} ({avg_grade})")
+
+                    # Extract individual metric averages
+                    avg_bullet_preservation = 0
+                    avg_json_integrity = 0
+                    avg_translation_quality = 0
+
+                    for m in metrics_list:
+                        m_data = m.get('metrics', {})
+                        avg_bullet_preservation += m_data.get('bullet_preservation', {}).get('score', 0)
+                        avg_json_integrity += m_data.get('json_integrity', {}).get('score', 0)
+                        avg_translation_quality += m_data.get('translation_quality', {}).get('score', 0)
+
+                    if len(metrics_list) > 0:
+                        avg_bullet_preservation /= len(metrics_list)
+                        avg_json_integrity /= len(metrics_list)
+                        avg_translation_quality /= len(metrics_list)
+
+                    st.progress(avg_bullet_preservation, text=f"Bullet Preservation: {avg_bullet_preservation:.2f}")
+                    st.progress(avg_json_integrity, text=f"JSON Integrity: {avg_json_integrity:.2f}")
+                    st.progress(avg_translation_quality, text=f"Translation Quality: {avg_translation_quality:.2f}")
+                    st.caption(f"Based on {len(metrics_list)} samples")
+                else:
+                    st.info("No metrics data for this agent yet")
+
+        # Metrics trends over time
+        st.markdown("**Quality Metrics Trends**")
+
+        if len(samples_with_metrics) >= 3:
+            # Show last 10 samples
+            recent_samples = samples_with_metrics[-10:]
+
+            # Prepare data for trend visualization
+            timestamps = []
+            overall_scores = []
+            agent_names = []
+
+            for d in recent_samples:
+                timestamps.append(d.get('timestamp', 'Unknown'))
+                metrics_data = d.get('comprehensive_metrics', {})
+                overall_scores.append(metrics_data.get('overall_score', 0))
+                agent_names.append(d.get('selected_variant', 'Unknown'))
+
+            # Display as table with color coding
+            trend_data = []
+            for i in range(len(recent_samples)):
+                score = overall_scores[i]
+                grade = metrics.get_letter_grade(score)
+                status = "✅" if score >= 0.85 else ("⚠️" if score >= 0.70 else "❌")
+
+                trend_data.append({
+                    "Sample": i + 1,
+                    "Timestamp": timestamps[i],
+                    "Agent": agent_names[i],
+                    "Score": f"{score:.2f}",
+                    "Grade": grade,
+                    "Status": status
+                })
+
+            st.dataframe(trend_data, use_container_width=True, height=300)
+
+            # Show average score over time
+            if len(overall_scores) > 0:
+                avg_recent_score = sum(overall_scores) / len(overall_scores)
+                st.metric(
+                    "Average Score (Last 10 Samples)",
+                    f"{avg_recent_score:.2f}",
+                    delta=f"{(overall_scores[-1] - overall_scores[0]):.2f}" if len(overall_scores) > 1 else None,
+                    help="Trend from oldest to newest in this window"
+                )
+        else:
+            st.info("Collect at least 3 samples to see trends")
+
+    else:
+        st.info("📊 No comprehensive metrics data available yet. Metrics will appear after processing CVs with the updated system.")
 
     st.divider()
 
@@ -648,10 +965,14 @@ else:
         st.session_state.validation_report = None
     if "session_id" not in st.session_state:
         st.session_state.session_id = None  # Unique ID for this tournament session
+    if "fidelity_reports" not in st.session_state:
+        st.session_state.fidelity_reports = {}  # {agent_name: fidelity_report}
+    if "comprehensive_metrics" not in st.session_state:
+        st.session_state.comprehensive_metrics = {}  # {agent_name: comprehensive_metrics_report}
 
     # Bulk mode states
     if "bulk_results" not in st.session_state:
-        st.session_state.bulk_results = {}  # {filename: {Conservative: {...}, Strategist: {...}}}
+        st.session_state.bulk_results = {}  # {filename: {Conservative: {...}, Strategist: {...}, Hybrid_Auditor: {...}}}
     if "bulk_selections" not in st.session_state:
         st.session_state.bulk_selections = {}  # {filename: "agent_name"}
     if "bulk_validation_reports" not in st.session_state:
@@ -664,6 +985,10 @@ else:
         st.session_state.bulk_filenames = []  # Ordered list of filenames
     if "bulk_session_id" not in st.session_state:
         st.session_state.bulk_session_id = None  # Unique ID for bulk tournament session
+    if "bulk_fidelity_reports" not in st.session_state:
+        st.session_state.bulk_fidelity_reports = {}  # {filename: {agent_name: fidelity_report}}
+    if "bulk_comprehensive_metrics" not in st.session_state:
+        st.session_state.bulk_comprehensive_metrics = {}  # {filename: {agent_name: comprehensive_metrics}}
 
     # === SINGLE CV MODE ===
     if processing_mode == "📄 Single CV":
@@ -690,7 +1015,7 @@ else:
 
             try:
                 # 2. Parallel Execution
-                personas = ["Conservative", "Strategist"]
+                personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
                 status_text = st.empty()
                 status_text.info("⚡ Agents are running in parallel... (Gemini 2.5 Vision)")
 
@@ -698,8 +1023,10 @@ else:
                     futures = {executor.submit(run_agent, tmp_path, p, visa_status): p for p in personas}
 
                     for future in concurrent.futures.as_completed(futures):
-                        persona, data = future.result()
+                        persona, data, fidelity_report, comprehensive_metrics_report = future.result()
                         st.session_state.results[persona] = data
+                        st.session_state.fidelity_reports[persona] = fidelity_report
+                        st.session_state.comprehensive_metrics[persona] = comprehensive_metrics_report
 
                 # Run GPA validation on all results
                 st.session_state.validation_report = validate_gpa_conversions(st.session_state.results)
@@ -741,7 +1068,7 @@ else:
             st.session_state.bulk_session_id = time.strftime("%Y%m%d_%H%M%S")
 
             # Process all PDFs
-            personas = ["Conservative", "Strategist"]
+            personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
             total_files = len(uploaded_files)
 
             # Create progress tracking
@@ -763,15 +1090,21 @@ else:
                 try:
                     # Run agents in parallel for this CV
                     cv_results = {}
+                    cv_fidelity_reports = {}
+                    cv_comprehensive_metrics = {}
                     with concurrent.futures.ThreadPoolExecutor() as executor:
                         futures = {executor.submit(run_agent, tmp_path, p, visa_status): p for p in personas}
 
                         for future in concurrent.futures.as_completed(futures):
-                            persona, data = future.result()
+                            persona, data, fidelity_report, comprehensive_metrics_report = future.result()
                             cv_results[persona] = data
+                            cv_fidelity_reports[persona] = fidelity_report
+                            cv_comprehensive_metrics[persona] = comprehensive_metrics_report
 
                     # Store results
                     st.session_state.bulk_results[filename] = cv_results
+                    st.session_state.bulk_fidelity_reports[filename] = cv_fidelity_reports
+                    st.session_state.bulk_comprehensive_metrics[filename] = cv_comprehensive_metrics
 
                     # Run validation
                     st.session_state.bulk_validation_reports[filename] = validate_gpa_conversions(cv_results)
@@ -799,20 +1132,20 @@ else:
 
         # Create dict of agent -> has_invalid_gpa
         agent_validation_status = {}
-        for agent_name in ["Conservative", "Strategist"]:
+        for agent_name in ["Conservative", "Strategist", "Hybrid_Auditor"]:
             has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
             agent_validation_status[agent_name] = has_invalid
 
         # Build tab names with status indicators
         tab_names = ["📋 Original CV"]
-        for agent in ["Conservative", "Strategist"]:
+        for agent in ["Conservative", "Strategist", "Hybrid_Auditor"]:
             if agent_validation_status.get(agent, False):
                 tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
             else:
                 tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
 
-        # Use TABS: Original CV + 2 Generated Versions
-        tab0, tab1, tab2 = st.tabs(tab_names)
+        # Use TABS: Original CV + 3 Generated Versions
+        tab0, tab1, tab2, tab3 = st.tabs(tab_names)
 
         # ORIGINAL CV TAB
         with tab0:
@@ -825,8 +1158,8 @@ else:
                 st.warning("Original PDF not found in session state.")
 
         # GENERATED RESUMES TABS
-        tabs = [tab1, tab2]
-        keys = ["Conservative", "Strategist"]
+        tabs = [tab1, tab2, tab3]
+        keys = ["Conservative", "Strategist", "Hybrid_Auditor"]
 
         for i, key in enumerate(keys):
             with tabs[i]:
@@ -844,15 +1177,32 @@ else:
 
                 st.markdown("---")
 
+                # FIDELITY AUDIT (Legacy Integrity Score)
+                fidelity_report = st.session_state.fidelity_reports.get(key, {})
+                if fidelity_report:
+                    if fidelity_report.get("is_safe"):
+                        st.success(f"✅ **Fidelity Audit Passed** ({fidelity_report.get('loss_percentage', 0)}% variance)")
+                    else:
+                        st.warning(f"⚠️ **High Variance Detected** ({fidelity_report.get('loss_percentage', 0)}%). Review for missing data.")
+                        if fidelity_report.get('flagged_words'):
+                            st.write(f"**Potential missing context:** {', '.join(fidelity_report.get('flagged_words', []))}")
+
+                # COMPREHENSIVE QUALITY METRICS
+                comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
+                display_comprehensive_metrics(comprehensive_metrics_report, key)
+
+                st.markdown("---")
+
                 # SELECT BUTTON (Prominent and centered)
                 col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
                 with col_btn2:
                     if st.button(f"✅ Select {key} as Winner", key=f"btn_{key}", type="primary", use_container_width=True):
                         st.session_state.selected_variant = key
-                        # Log Data (Flywheel) with validation report
+                        # Log Data (Flywheel) with validation report and comprehensive metrics
                         validation_report = st.session_state.get('validation_report', None)
                         session_id = st.session_state.get('session_id', None)
-                        save_training_data(st.session_state.original_filename, key, data, validation_report, session_id, "single")
+                        comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
+                        save_training_data(st.session_state.original_filename, key, data, validation_report, session_id, "single", comprehensive_metrics_report)
                         st.toast(f"✅ {key} selected! Training data saved.")
                         st.rerun()  # Refresh to show download button
 
@@ -964,20 +1314,20 @@ else:
 
             # Create dict of agent -> has_invalid_gpa
             agent_validation_status = {}
-            for agent_name in ["Conservative", "Strategist"]:
+            for agent_name in ["Conservative", "Strategist", "Hybrid_Auditor"]:
                 has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
                 agent_validation_status[agent_name] = has_invalid
 
             # Build tab names with status indicators
             tab_names = ["📋 Original CV"]
-            for agent in ["Conservative", "Strategist"]:
+            for agent in ["Conservative", "Strategist", "Hybrid_Auditor"]:
                 if agent_validation_status.get(agent, False):
                     tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
                 else:
                     tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
 
-            # Use TABS: Original CV + 2 Generated Versions
-            tab0, tab1, tab2 = st.tabs(tab_names)
+            # Use TABS: Original CV + 3 Generated Versions
+            tab0, tab1, tab2, tab3 = st.tabs(tab_names)
 
             # ORIGINAL CV TAB
             with tab0:
@@ -990,8 +1340,8 @@ else:
                     st.warning("Original PDF not found.")
 
             # GENERATED RESUMES TABS
-            tabs = [tab1, tab2]
-            keys = ["Conservative", "Strategist"]
+            tabs = [tab1, tab2, tab3]
+            keys = ["Conservative", "Strategist", "Hybrid_Auditor"]
 
             for i, key in enumerate(keys):
                 with tabs[i]:
@@ -1009,6 +1359,24 @@ else:
 
                     st.markdown("---")
 
+                    # FIDELITY AUDIT (Legacy Integrity Score)
+                    cv_fidelity_reports = st.session_state.bulk_fidelity_reports.get(current_filename, {})
+                    fidelity_report = cv_fidelity_reports.get(key, {})
+                    if fidelity_report:
+                        if fidelity_report.get("is_safe"):
+                            st.success(f"✅ **Fidelity Audit Passed** ({fidelity_report.get('loss_percentage', 0)}% variance)")
+                        else:
+                            st.warning(f"⚠️ **High Variance Detected** ({fidelity_report.get('loss_percentage', 0)}%). Review for missing data.")
+                            if fidelity_report.get('flagged_words'):
+                                st.write(f"**Potential missing context:** {', '.join(fidelity_report.get('flagged_words', []))}")
+
+                    # COMPREHENSIVE QUALITY METRICS
+                    cv_comprehensive_metrics = st.session_state.bulk_comprehensive_metrics.get(current_filename, {})
+                    comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
+                    display_comprehensive_metrics(comprehensive_metrics_report, key)
+
+                    st.markdown("---")
+
                     # SELECT BUTTON (Prominent and centered)
                     col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
                     with col_btn2:
@@ -1020,9 +1388,10 @@ else:
                         if st.button(button_label, key=f"bulk_btn_{current_filename}_{key}", type=button_type, use_container_width=True):
                             # Save selection
                             st.session_state.bulk_selections[current_filename] = key
-                            # Log Data (Flywheel) with validation report
+                            # Log Data (Flywheel) with validation report and comprehensive metrics
                             bulk_session_id = st.session_state.get('bulk_session_id', None)
-                            save_training_data(current_filename, key, data, validation_report, bulk_session_id, "bulk")
+                            comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
+                            save_training_data(current_filename, key, data, validation_report, bulk_session_id, "bulk", comprehensive_metrics_report)
                             st.toast(f"✅ {key} selected for {current_filename}!")
                             st.rerun()
 

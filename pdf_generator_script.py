@@ -299,11 +299,145 @@ TECH_SKILLS = {
     'ml': ['TensorFlow', 'PyTorch', 'scikit-learn', 'Keras', 'Pandas', 'NumPy']
 }
 
-JOB_TITLES = [
-    'Software Engineer', 'Senior Software Engineer', 'Data Scientist',
-    'Machine Learning Engineer', 'DevOps Engineer', 'Full Stack Developer',
-    'Backend Engineer', 'Frontend Developer', 'Cloud Architect'
-]
+# Native language job titles and experience bullets
+LOCALIZED_CONTENT = {
+    'italian': {
+        'job_titles': [
+            'Ingegnere del Software', 'Ingegnere del Software Senior', 'Data Scientist',
+            'Ingegnere Machine Learning', 'DevOps Engineer', 'Sviluppatore Full Stack',
+            'Ingegnere Backend', 'Sviluppatore Frontend', 'Architetto Cloud', 'Responsabile Tecnico'
+        ],
+        'bullets': [
+            "Sviluppato sistema di {tech} servendo oltre {num}K utenti giornalieri con riduzione della latenza del {perc}%",
+            "Guidato team di {team} ingegneri nella migrazione verso architettura cloud, riducendo i costi del {perc}%",
+            "Implementato pipeline CI/CD con Docker e Kubernetes, migliorando la velocità di deployment del {perc}%",
+            "Ottimizzato query database riducendo i tempi di risposta da {old}s a {new}ms",
+            "Progettato e realizzato sistema di raccomandazione con accuratezza del {perc}%",
+            "Gestito budget di €{budget}K per infrastruttura cloud e sviluppo prodotto",
+            "Collaborato con team internazionali per delivery di features critiche in ambienti Agile",
+            "Automatizzato processi di testing riducendo bug in produzione del {perc}%"
+        ]
+    },
+    'french': {
+        'job_titles': [
+            'Ingénieur Logiciel', 'Ingénieur Logiciel Senior', 'Data Scientist',
+            'Ingénieur Machine Learning', 'Ingénieur DevOps', 'Développeur Full Stack',
+            'Ingénieur Backend', 'Développeur Frontend', 'Architecte Cloud', 'Chef de Projet Technique'
+        ],
+        'bullets': [
+            "Développé système de {tech} desservant plus de {num}K utilisateurs quotidiens avec réduction de latence de {perc}%",
+            "Dirigé équipe de {team} ingénieurs dans migration vers architecture cloud, réduisant les coûts de {perc}%",
+            "Implémenté pipeline CI/CD avec Docker et Kubernetes, améliorant la vitesse de déploiement de {perc}%",
+            "Optimisé requêtes base de données réduisant temps de réponse de {old}s à {new}ms",
+            "Conçu et développé système de recommandation avec précision de {perc}%",
+            "Géré budget de €{budget}K pour infrastructure cloud et développement produit",
+            "Collaboré avec équipes internationales pour livraison de fonctionnalités critiques en environnement Agile",
+            "Automatisé processus de tests réduisant bugs en production de {perc}%"
+        ]
+    },
+    'german': {
+        'job_titles': [
+            'Software-Ingenieur', 'Senior Software-Ingenieur', 'Data Scientist',
+            'Machine Learning Ingenieur', 'DevOps-Ingenieur', 'Full-Stack-Entwickler',
+            'Backend-Ingenieur', 'Frontend-Entwickler', 'Cloud-Architekt', 'Technischer Leiter'
+        ],
+        'bullets': [
+            "Entwicklung von {tech}-System für über {num}K tägliche Benutzer mit Latenzreduzierung um {perc}%",
+            "Leitung eines Teams von {team} Ingenieuren bei Cloud-Migration, Kostensenkung um {perc}%",
+            "Implementierung der CI/CD-Pipeline mit Docker und Kubernetes, Verbesserung der Deployment-Geschwindigkeit um {perc}%",
+            "Optimierung von Datenbankabfragen, Reduzierung der Antwortzeit von {old}s auf {new}ms",
+            "Entwurf und Entwicklung eines Empfehlungssystems mit {perc}% Genauigkeit",
+            "Verwaltung eines Budgets von €{budget}K für Cloud-Infrastruktur und Produktentwicklung",
+            "Zusammenarbeit mit internationalen Teams zur Bereitstellung kritischer Features in agilen Umgebungen",
+            "Automatisierung von Testprozessen, Reduzierung von Produktionsfehlern um {perc}%"
+        ]
+    },
+    'spanish': {
+        'job_titles': [
+            'Ingeniero de Software', 'Ingeniero de Software Senior', 'Científico de Datos',
+            'Ingeniero de Machine Learning', 'Ingeniero DevOps', 'Desarrollador Full Stack',
+            'Ingeniero Backend', 'Desarrollador Frontend', 'Arquitecto Cloud', 'Responsable Técnico'
+        ],
+        'bullets': [
+            "Desarrollado sistema de {tech} sirviendo más de {num}K usuarios diarios con reducción de latencia del {perc}%",
+            "Liderado equipo de {team} ingenieros en migración a arquitectura cloud, reduciendo costos en {perc}%",
+            "Implementado pipeline CI/CD con Docker y Kubernetes, mejorando velocidad de deployment en {perc}%",
+            "Optimizado queries de base de datos reduciendo tiempo de respuesta de {old}s a {new}ms",
+            "Diseñado y desarrollado sistema de recomendación con precisión del {perc}%",
+            "Gestionado presupuesto de €{budget}K para infraestructura cloud y desarrollo de producto",
+            "Colaborado con equipos internacionales para entrega de funcionalidades críticas en entornos Agile",
+            "Automatizado procesos de testing reduciendo bugs en producción en {perc}%"
+        ]
+    },
+    'portuguese': {
+        'job_titles': [
+            'Engenheiro de Software', 'Engenheiro de Software Sênior', 'Cientista de Dados',
+            'Engenheiro de Machine Learning', 'Engenheiro DevOps', 'Desenvolvedor Full Stack',
+            'Engenheiro Backend', 'Desenvolvedor Frontend', 'Arquiteto Cloud', 'Responsável Técnico'
+        ],
+        'bullets': [
+            "Desenvolvido sistema de {tech} servindo mais de {num}K usuários diários com redução de latência de {perc}%",
+            "Liderado equipe de {team} engenheiros na migração para arquitetura cloud, reduzindo custos em {perc}%",
+            "Implementado pipeline CI/CD com Docker e Kubernetes, melhorando velocidade de deployment em {perc}%",
+            "Otimizado queries de base de dados reduzindo tempo de resposta de {old}s para {new}ms",
+            "Projetado e desenvolvido sistema de recomendação com precisão de {perc}%",
+            "Gerenciado orçamento de €{budget}K para infraestrutura cloud e desenvolvimento de produto",
+            "Colaborado com equipes internacionais para entrega de funcionalidades críticas em ambientes Agile",
+            "Automatizado processos de testes reduzindo bugs em produção em {perc}%"
+        ]
+    },
+    'indian': {
+        'job_titles': [
+            'Software Engineer', 'Senior Software Engineer', 'Data Scientist',
+            'Machine Learning Engineer', 'DevOps Engineer', 'Full Stack Developer',
+            'Backend Engineer', 'Frontend Developer', 'Cloud Architect', 'Technical Lead'
+        ],
+        'bullets': [
+            "Developed {tech} system serving {num}K+ daily users with {perc}% latency reduction",
+            "Led team of {team} engineers in cloud migration, reducing costs by {perc}%",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by {perc}%",
+            "Optimized database queries reducing response time from {old}s to {new}ms",
+            "Designed and developed recommendation system with {perc}% accuracy",
+            "Managed budget of ${budget}K for cloud infrastructure and product development",
+            "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+            "Automated testing processes reducing production bugs by {perc}%"
+        ]
+    },
+    'chinese': {
+        'job_titles': [
+            '软件工程师', '高级软件工程师', '数据科学家',
+            '机器学习工程师', 'DevOps工程师', '全栈开发工程师',
+            '后端工程师', '前端开发工程师', '云架构师', '技术主管'
+        ],
+        'bullets': [
+            "开发{tech}系统，服务{num}K+日活用户，延迟降低{perc}%",
+            "带领{team}名工程师完成云迁移项目，成本降低{perc}%",
+            "实施Docker和Kubernetes CI/CD流水线，部署速度提升{perc}%",
+            "优化数据库查询，响应时间从{old}秒降至{new}毫秒",
+            "设计并开发推荐系统，准确率达{perc}%",
+            "管理¥{budget}万预算，用于云基础设施和产品开发",
+            "与跨职能团队协作，在敏捷环境中交付关键功能",
+            "自动化测试流程，生产环境bug减少{perc}%"
+        ]
+    },
+    'uk': {
+        'job_titles': [
+            'Software Engineer', 'Senior Software Engineer', 'Data Scientist',
+            'Machine Learning Engineer', 'DevOps Engineer', 'Full Stack Developer',
+            'Backend Engineer', 'Frontend Developer', 'Cloud Architect', 'Technical Lead'
+        ],
+        'bullets': [
+            "Developed {tech} system serving {num}K+ daily users with {perc}% latency reduction",
+            "Led team of {team} engineers in cloud migration, reducing costs by {perc}%",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by {perc}%",
+            "Optimised database queries reducing response time from {old}s to {new}ms",
+            "Designed and developed recommendation system with {perc}% accuracy",
+            "Managed budget of £{budget}K for cloud infrastructure and product development",
+            "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+            "Automated testing processes reducing production bugs by {perc}%"
+        ]
+    }
+}
 
 def random_phone(country):
     """Generate random phone number based on country format"""
@@ -341,18 +475,29 @@ def draw_skill_bar(canvas_obj, x, y, width, proficiency, skill_name):
     canvas_obj.setFont('Times-Roman', 9)
     canvas_obj.drawString(x, y + bar_height + 2, skill_name)
 
-def generate_experience_bullets(count=4):
-    """Generate realistic experience bullets"""
-    metrics = [
-        f"Developed {random.choice(['microservices', 'API', 'web application', 'mobile app'])} serving {random.randint(100, 999)}K+ daily users",
-        f"Reduced {random.choice(['latency', 'costs', 'deployment time'])} by {random.randint(20, 50)}%",
-        f"Led team of {random.randint(3, 8)} engineers on {random.choice(['cloud migration', 'product launch', 'system redesign'])}",
-        f"Implemented {random.choice(['CI/CD pipeline', 'testing framework', 'monitoring system'])} improving {random.choice(['deployment speed', 'code quality', 'uptime'])}",
-        f"Optimized database queries reducing response time from {random.randint(2, 10)}s to {random.randint(100, 900)}ms",
-        f"Built {random.choice(['recommendation engine', 'fraud detection system', 'search algorithm'])} with {random.randint(80, 95)}% accuracy",
-        f"Managed budget of ${random.randint(500, 5000)}K for {random.choice(['infrastructure', 'R&D', 'product development'])}"
-    ]
-    return random.sample(metrics, min(count, len(metrics)))
+def generate_experience_bullets(nationality, count=5):
+    """Generate realistic experience bullets in native language"""
+    localized = LOCALIZED_CONTENT[nationality]
+    tech_options = ['microservices', 'API', 'cloud', 'machine learning']
+
+    bullets = []
+    templates = localized['bullets']
+
+    for _ in range(min(count, len(templates))):
+        template = random.choice(templates)
+        bullet = template.format(
+            tech=random.choice(tech_options),
+            num=random.randint(100, 999),
+            perc=random.randint(20, 60),
+            team=random.randint(3, 10),
+            old=random.randint(2, 10),
+            new=random.randint(100, 900),
+            budget=random.randint(500, 5000)
+        )
+        bullets.append(bullet)
+        templates = [t for t in templates if t != template]  # Avoid repeats
+
+    return bullets
 
 def generate_random_cv(nationality, output_dir='test_cvs'):
     """Generate a single random CV for given nationality"""
@@ -399,9 +544,9 @@ def generate_random_cv(nationality, output_dir='test_cvs'):
     bachelor_uni = random.choice(config['universities'])
     master_grade = config['grade_system']() if has_masters else None
     bachelor_grade = config['grade_system']()
-    
-    # Experience (2-4 positions)
-    num_positions = random.randint(2, 4)
+
+    # Experience (4-7 positions for longer CVs)
+    num_positions = random.randint(4, 7)
     years_experience = age - 22
     
     # Skills
@@ -575,8 +720,10 @@ def generate_random_cv(nationality, output_dir='test_cvs'):
     # EXPERIENCE SECTION
     experience_content.append(Paragraph(headers['experience'], header_style))
 
+    localized_content = LOCALIZED_CONTENT[nationality]
+
     for i in range(num_positions):
-        job_title = random.choice(JOB_TITLES)
+        job_title = random.choice(localized_content['job_titles'])
         company = random.choice(config['companies'])
 
         if i == 0:
@@ -584,7 +731,7 @@ def generate_random_cv(nationality, output_dir='test_cvs'):
         else:
             dates = random_date_range(i*2, i*2 + 2)
 
-        bullets = generate_experience_bullets(random.randint(3, 5))
+        bullets = generate_experience_bullets(nationality, random.randint(4, 6))
         bullets_html = '<br/>'.join([f"• {b}" for b in bullets])
 
         exp_text = f"""<b>{job_title}</b> | {company}, {location} | <i>{dates[0]} - {dates[1]}</i>
