@@ -35,10 +35,12 @@ except Exception:
     st.stop()
 
 # --- 1. THE LOGGER (FLYWHEEL) ---
-def save_training_data(original_filename, selected_variant, final_json, validation_report=None):
+def save_training_data(original_filename, selected_variant, final_json, validation_report=None, session_id=None, processing_mode="single"):
     """Saves the user's preference to a local JSONL file for future fine-tuning."""
     log_entry = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "session_id": session_id if session_id else time.strftime("%Y%m%d_%H%M%S"),  # Unique session identifier
+        "processing_mode": processing_mode,  # "single" or "bulk"
         "filename": original_filename,
         "selected_variant": selected_variant,
         "final_json": final_json,
@@ -177,26 +179,24 @@ def generate_dynamic_pdf(data):
 def get_system_prompt(persona):
     """Generate system prompt using centralized prompt library with injected grading standards."""
 
-    # Load deterministic grading standards from JSON
+    # 1. Load the "Golden Rules" from your JSON
     try:
         with open("grading_standards.json", "r") as f:
             grading_rules = f.read()
     except FileNotFoundError:
-        # Fallback to embedded rules if file not found
-        grading_rules = json.dumps(prompts.GRADING_RULES, indent=2)
-        st.warning("⚠️ grading_standards.json not found. Using embedded fallback rules.")
+        grading_rules = "{'Warning': 'No reference data found.'}"
 
-    # Get agent-specific data from library
-    agent_data = prompts.AGENT_PROMPTS.get(persona, prompts.AGENT_PROMPTS["Balanced"])
+    # 2. Get the specific Agent instructions
+    agent_data = prompts.AGENT_PROMPTS.get(persona, prompts.AGENT_PROMPTS["Strategist"])
 
-    # Construct the final instruction set with injected grading rules
+    # 3. Stitch them together for the model
     return f"""
 {prompts.BASE_INSTRUCTIONS}
 
-DETERMINISTIC GRADING RULES (REFERENCE TABLE - USE FOR EXACT LOOKUPS):
+DETERMINISTIC GRADING RULES (REFERENCE ONLY):
 {grading_rules}
 
-STYLE RULES FOR THIS AGENT ({persona.upper()}):
+STYLE RULES FOR THIS AGENT:
 {agent_data['instructions']}
 """
 
@@ -360,13 +360,76 @@ def run_admin_dashboard():
 
     st.divider()
 
-    # 3.5 VALIDATION METRICS
+    # 3.5 TOURNAMENT SESSIONS (GROUPED VIEW)
+    st.subheader("🎯 Tournament Sessions")
+
+    # Group data by session_id
+    from collections import defaultdict
+    sessions = defaultdict(list)
+    for d in data:
+        session_id = d.get('session_id', 'unknown')
+        sessions[session_id].append(d)
+
+    # Display sessions in reverse chronological order
+    session_list = sorted(sessions.items(), key=lambda x: x[0], reverse=True)
+
+    if len(session_list) > 0:
+        st.markdown(f"**Total Sessions:** {len(session_list)}")
+
+        # Session selector
+        selected_session = st.selectbox(
+            "Select a tournament session to view:",
+            options=range(len(session_list)),
+            format_func=lambda i: f"Session #{i+1}: {session_list[i][0]} ({len(session_list[i][1])} CVs, {session_list[i][1][0].get('processing_mode', 'unknown')} mode)"
+        )
+
+        if selected_session is not None:
+            session_id, session_data = session_list[selected_session]
+
+            # Session details
+            col_sess1, col_sess2, col_sess3, col_sess4 = st.columns(4)
+            with col_sess1:
+                st.metric("Session ID", session_id)
+            with col_sess2:
+                st.metric("CVs Processed", len(session_data))
+            with col_sess3:
+                processing_mode = session_data[0].get('processing_mode', 'unknown')
+                st.metric("Mode", processing_mode.capitalize())
+            with col_sess4:
+                timestamp = session_data[0].get('timestamp', 'Unknown')
+                st.metric("Date/Time", timestamp)
+
+            # Session-specific agent wins
+            session_agents = [d['selected_variant'] for d in session_data]
+            session_agent_counts = Counter(session_agents)
+
+            st.markdown("**Agent Performance in This Session:**")
+            for agent, count in session_agent_counts.most_common():
+                percentage = (count / len(session_data)) * 100
+                st.progress(percentage / 100, text=f"{agent}: {count}/{len(session_data)} wins ({percentage:.1f}%)")
+
+            # Session CV list
+            st.markdown("**CVs in This Session:**")
+            session_table = []
+            for idx, d in enumerate(session_data):
+                session_table.append({
+                    "Index": idx + 1,
+                    "Filename": d['filename'],
+                    "Winner": d['selected_variant'],
+                    "Candidate": d['final_json'].get('contact_info', {}).get('name', 'N/A'),
+                    "Valid GPA": "✅" if d.get('validation_report', {}).get('valid', True) else "❌"
+                })
+            st.dataframe(session_table, use_container_width=True, height=300)
+
+    st.divider()
+
+    # 3.6 VALIDATION METRICS
     st.subheader("🛡️ GPA Validation Analytics")
 
     # Analyze validation data across all samples
     total_validations = 0
     total_invalid_gpas = 0
-    agent_failure_counts = {"Conservative": 0, "Marketer": 0, "Balanced": 0}
+    agent_failure_counts = {"Conservative": 0, "Strategist": 0}
     invalid_gpa_values = []
 
     for d in data:
@@ -396,14 +459,12 @@ def run_admin_dashboard():
     # Agent failure breakdown
     if total_invalid_gpas > 0:
         st.markdown("**Agent Validation Failures:**")
-        col_agent1, col_agent2, col_agent3 = st.columns(3)
+        col_agent1, col_agent2 = st.columns(2)
 
         with col_agent1:
             st.metric("Conservative", agent_failure_counts["Conservative"])
         with col_agent2:
-            st.metric("Marketer", agent_failure_counts["Marketer"])
-        with col_agent3:
-            st.metric("Balanced", agent_failure_counts["Balanced"])
+            st.metric("Strategist", agent_failure_counts["Strategist"])
 
         # Most common invalid GPAs
         if invalid_gpa_values:
@@ -585,10 +646,12 @@ else:
         st.session_state.original_pdf_bytes = None
     if "validation_report" not in st.session_state:
         st.session_state.validation_report = None
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = None  # Unique ID for this tournament session
 
     # Bulk mode states
     if "bulk_results" not in st.session_state:
-        st.session_state.bulk_results = {}  # {filename: {Conservative: {...}, Marketer: {...}, Balanced: {...}}}
+        st.session_state.bulk_results = {}  # {filename: {Conservative: {...}, Strategist: {...}}}
     if "bulk_selections" not in st.session_state:
         st.session_state.bulk_selections = {}  # {filename: "agent_name"}
     if "bulk_validation_reports" not in st.session_state:
@@ -599,6 +662,8 @@ else:
         st.session_state.current_cv_index = 0
     if "bulk_filenames" not in st.session_state:
         st.session_state.bulk_filenames = []  # Ordered list of filenames
+    if "bulk_session_id" not in st.session_state:
+        st.session_state.bulk_session_id = None  # Unique ID for bulk tournament session
 
     # === SINGLE CV MODE ===
     if processing_mode == "📄 Single CV":
@@ -615,6 +680,8 @@ else:
             st.session_state.selected_variant = None
             # Store original PDF for comparison
             st.session_state.original_pdf_bytes = uploaded_file.getvalue()
+            # Generate unique session ID for this tournament
+            st.session_state.session_id = time.strftime("%Y%m%d_%H%M%S")
 
             # 1. Save Temp File for Vision
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
@@ -623,7 +690,7 @@ else:
 
             try:
                 # 2. Parallel Execution
-                personas = ["Conservative", "Marketer", "Balanced"]
+                personas = ["Conservative", "Strategist"]
                 status_text = st.empty()
                 status_text.info("⚡ Agents are running in parallel... (Gemini 2.5 Vision)")
 
@@ -670,9 +737,11 @@ else:
             st.session_state.bulk_original_pdfs = {}
             st.session_state.bulk_filenames = [f.name for f in uploaded_files]
             st.session_state.current_cv_index = 0
+            # Generate unique session ID for this bulk tournament
+            st.session_state.bulk_session_id = time.strftime("%Y%m%d_%H%M%S")
 
             # Process all PDFs
-            personas = ["Conservative", "Marketer", "Balanced"]
+            personas = ["Conservative", "Strategist"]
             total_files = len(uploaded_files)
 
             # Create progress tracking
@@ -730,20 +799,20 @@ else:
 
         # Create dict of agent -> has_invalid_gpa
         agent_validation_status = {}
-        for agent_name in ["Conservative", "Marketer", "Balanced"]:
+        for agent_name in ["Conservative", "Strategist"]:
             has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
             agent_validation_status[agent_name] = has_invalid
 
         # Build tab names with status indicators
         tab_names = ["📋 Original CV"]
-        for agent in ["Conservative", "Marketer", "Balanced"]:
+        for agent in ["Conservative", "Strategist"]:
             if agent_validation_status.get(agent, False):
                 tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
             else:
                 tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
 
-        # Use TABS: Original CV + 3 Generated Versions
-        tab0, tab1, tab2, tab3 = st.tabs(tab_names)
+        # Use TABS: Original CV + 2 Generated Versions
+        tab0, tab1, tab2 = st.tabs(tab_names)
 
         # ORIGINAL CV TAB
         with tab0:
@@ -756,8 +825,8 @@ else:
                 st.warning("Original PDF not found in session state.")
 
         # GENERATED RESUMES TABS
-        tabs = [tab1, tab2, tab3]
-        keys = ["Conservative", "Marketer", "Balanced"]
+        tabs = [tab1, tab2]
+        keys = ["Conservative", "Strategist"]
 
         for i, key in enumerate(keys):
             with tabs[i]:
@@ -782,7 +851,8 @@ else:
                         st.session_state.selected_variant = key
                         # Log Data (Flywheel) with validation report
                         validation_report = st.session_state.get('validation_report', None)
-                        save_training_data(st.session_state.original_filename, key, data, validation_report)
+                        session_id = st.session_state.get('session_id', None)
+                        save_training_data(st.session_state.original_filename, key, data, validation_report, session_id, "single")
                         st.toast(f"✅ {key} selected! Training data saved.")
                         st.rerun()  # Refresh to show download button
 
@@ -894,20 +964,20 @@ else:
 
             # Create dict of agent -> has_invalid_gpa
             agent_validation_status = {}
-            for agent_name in ["Conservative", "Marketer", "Balanced"]:
+            for agent_name in ["Conservative", "Strategist"]:
                 has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
                 agent_validation_status[agent_name] = has_invalid
 
             # Build tab names with status indicators
             tab_names = ["📋 Original CV"]
-            for agent in ["Conservative", "Marketer", "Balanced"]:
+            for agent in ["Conservative", "Strategist"]:
                 if agent_validation_status.get(agent, False):
                     tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
                 else:
                     tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
 
-            # Use TABS: Original CV + 3 Generated Versions
-            tab0, tab1, tab2, tab3 = st.tabs(tab_names)
+            # Use TABS: Original CV + 2 Generated Versions
+            tab0, tab1, tab2 = st.tabs(tab_names)
 
             # ORIGINAL CV TAB
             with tab0:
@@ -920,8 +990,8 @@ else:
                     st.warning("Original PDF not found.")
 
             # GENERATED RESUMES TABS
-            tabs = [tab1, tab2, tab3]
-            keys = ["Conservative", "Marketer", "Balanced"]
+            tabs = [tab1, tab2]
+            keys = ["Conservative", "Strategist"]
 
             for i, key in enumerate(keys):
                 with tabs[i]:
@@ -951,7 +1021,8 @@ else:
                             # Save selection
                             st.session_state.bulk_selections[current_filename] = key
                             # Log Data (Flywheel) with validation report
-                            save_training_data(current_filename, key, data, validation_report)
+                            bulk_session_id = st.session_state.get('bulk_session_id', None)
+                            save_training_data(current_filename, key, data, validation_report, bulk_session_id, "bulk")
                             st.toast(f"✅ {key} selected for {current_filename}!")
                             st.rerun()
 
