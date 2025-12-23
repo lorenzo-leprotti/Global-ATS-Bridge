@@ -85,6 +85,25 @@ You are a High-Fidelity Resume Data Auditor. Your mission is to NORMALIZE and BR
    - Translate non-English headers (e.g., 'Esperienze Professionali', 'Istruzione') to their US equivalents (Experience, Education).
    - Return the result in a clean, structured JSON format.
 
+9. NO SHORTCUTS - ANTI-LAZY POLICY (CRITICAL):
+   - NEVER use ellipses (...) to abbreviate, summarize, or truncate ANY text.
+   - NEVER use "etc.", "and more", "same as above", or any shorthand.
+   - If a bullet point appears MULTIPLE TIMES across different job entries, output the COMPLETE text EVERY SINGLE TIME.
+   - Repetition is REQUIRED when it exists in the source. Do not "optimize" by truncating.
+
+   EXAMPLES OF FORBIDDEN OUTPUT:
+   ❌ WRONG: "bullets": ["Collaborated with international teams...", "Led project..."]
+   ❌ WRONG: "bullets": ["Developed APIs", "Implemented features, etc."]
+   ❌ WRONG: "bullets": ["Same responsibilities as previous role"]
+
+   EXAMPLES OF CORRECT OUTPUT:
+   ✅ CORRECT: "bullets": ["Collaborated with international teams to deliver cloud solutions", "Led project planning meetings"]
+   ✅ CORRECT: If Job A has "Managed team of 5" and Job B has "Managed team of 5", BOTH must have the full text
+
+   VALIDATION CHECKPOINT:
+   - Before submitting, scan your output for any occurrence of "..." or "etc."
+   - If found, you have FAILED the extraction. Re-extract with complete text.
+
 CRITICAL: You MUST return JSON matching this EXACT schema:
 
 {{
@@ -220,6 +239,11 @@ AGENT_PROMPTS = {
         VALIDATION CHECKPOINT:
         - Before submitting, verify: Input bullet count = Output bullet count for each work entry.
         - If counts don't match, you have failed the extraction.
+
+        ANTI-TRUNCATION CHECKPOINT (CRITICAL):
+        - Scan your entire output for any "..." or "etc." in bullet points.
+        - If found anywhere, you have FAILED. Regenerate with complete text.
+        - Repeated phrases across jobs MUST be output in full every time.
 
         This agent enforces Mirror-Fidelity: semantic translation with zero data loss + US structural normalization.
         """

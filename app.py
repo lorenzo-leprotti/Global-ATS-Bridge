@@ -16,7 +16,7 @@ import prompts  # Prompt library for agent personas
 import metrics  # Comprehensive quality metrics
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Global ATS Bridge (V3 Tournament)", layout="wide")
+st.set_page_config(page_title="Global ATS Bridge (V3 Tournament - Gemini 3 Flash)", layout="wide")
 
 # --- RETRY HELPER ---
 def retry_with_backoff(func, max_retries=3):
@@ -49,7 +49,7 @@ def verify_fidelity(original_pdf_path, optimized_json):
         time.sleep(1)  # Wait for file processing
 
         # Simple extraction prompt
-        extraction_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        extraction_model = genai.GenerativeModel('gemini-3-flash-preview')
         extract_prompt = "Extract all text from this PDF exactly as written. Return only the raw text, no formatting."
         response = extraction_model.generate_content([extract_prompt, pdf_file])
         original_text = response.text
@@ -111,7 +111,7 @@ def save_training_data(original_filename, selected_variant, final_json, validati
         "validation_report": validation_report if validation_report else {"valid": True, "invalid_gpas_found": []},
         "comprehensive_metrics": comprehensive_metrics if comprehensive_metrics else {}
     }
-    with open("training_data.jsonl", "a") as f:
+    with open("data/training_data.jsonl", "a") as f:
         f.write(json.dumps(log_entry) + "\n")
 
 # --- 2A. PDF PREVIEW HELPER ---
@@ -224,6 +224,19 @@ def display_comprehensive_metrics(metrics_report, agent_name):
             st.caption(f"{sd.get('status', '❌')} Score: {sd.get('score', 0):.2f}")
 
         with col8:
+            cc = metrics_data.get('completeness_check', {})
+            st.metric(
+                "Completeness",
+                f"{cc.get('total_truncated', 0)} truncations",
+                delta=None,
+                help="Detects ellipses (...), 'etc.', and other truncation markers"
+            )
+            st.caption(f"{cc.get('status', '❌')} Score: {cc.get('score', 0):.2f}")
+
+        # Row 3: Overall grade
+        st.markdown("---")
+        col_overall = st.columns([1, 1, 1])[1]
+        with col_overall:
             st.metric(
                 "Overall Grade",
                 grade,
@@ -242,6 +255,16 @@ def display_comprehensive_metrics(metrics_report, agent_name):
             st.markdown("**Phantom Sections Found:**")
             for phantom in pd.get('phantom_sections', [])[:5]:
                 st.text(f"  • {phantom.get('section', 'Unknown')}: {phantom.get('issue', 'Unknown')}")
+
+        # Completeness check issues
+        cc = metrics_data.get('completeness_check', {})
+        if cc.get('truncation_issues'):
+            st.markdown("**🚨 Truncation Issues Found (Anti-Lazy Policy Violation):**")
+            for issue in cc.get('truncation_issues', [])[:5]:
+                st.error(f"**{issue.get('location', 'Unknown')}**")
+                st.text(f"  Text: {issue.get('text', 'N/A')}")
+                st.text(f"  Issues: {', '.join(issue.get('issues', []))}")
+                st.markdown("---")
 
 # --- 2B. THE HANDS: DYNAMIC PDF GENERATOR ---
 def generate_dynamic_pdf(data):
@@ -360,7 +383,7 @@ def get_system_prompt(persona):
 
     # 1. Load the "Golden Rules" from your JSON
     try:
-        with open("grading_standards.json", "r") as f:
+        with open("data/grading_standards.json", "r") as f:
             grading_rules = f.read()
     except FileNotFoundError:
         grading_rules = "{'Warning': 'No reference data found.'}"
@@ -387,10 +410,10 @@ def validate_gpa_conversions(agent_results):
     """
     # Load grading standards
     try:
-        with open("grading_standards.json", "r") as f:
+        with open("data/grading_standards.json", "r") as f:
             standards = json.load(f)
     except FileNotFoundError:
-        return {"error": "grading_standards.json not found", "valid": False}
+        return {"error": "data/grading_standards.json not found", "valid": False}
 
     # Extract valid GPA values from standards
     valid_gpas = set()
@@ -477,7 +500,17 @@ def run_agent(file_path, persona, visa_status):
             return persona, {"error": "File processing failed on Google side."}, None, None
 
         # 2. Generate with retry logic
-        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        # Create generation config for deterministic output
+        gen_config = genai.GenerationConfig(
+            temperature=0.0,  # Maximum determinism, no creativity
+            max_output_tokens=8192,  # Allow long CVs without truncation
+            response_mime_type="application/json"
+        )
+
+        model = genai.GenerativeModel(
+            'gemini-3-flash-preview',
+            generation_config=gen_config
+        )
         prompt = get_system_prompt(persona)
 
         response = retry_with_backoff(
@@ -495,7 +528,7 @@ def run_agent(file_path, persona, visa_status):
 
         # 5. Extract original text for comprehensive metrics
         try:
-            extract_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            extract_model = genai.GenerativeModel('gemini-3-flash-preview')
             extract_prompt = "Extract all text from this PDF exactly as written. Return only the raw text, no formatting."
             extract_file = genai.upload_file(file_path, mime_type="application/pdf")
             time.sleep(1)
@@ -524,7 +557,7 @@ def run_agent(file_path, persona, visa_status):
 def run_admin_dashboard():
     st.header("📊 Training Data Control Tower")
 
-    file_path = "training_data.jsonl"
+    file_path = "data/training_data.jsonl"
 
     # 1. Check if data exists
     if not os.path.exists(file_path):
@@ -942,6 +975,17 @@ else:
     # Processing Mode Selector
     processing_mode = st.radio("Processing Mode", ["📄 Single CV", "📚 Bulk Set"], horizontal=True)
 
+    # Agent Mode Selector
+    st.markdown("---")
+    agent_mode = st.radio(
+        "Agent Mode",
+        ["⚡ Quick Mode (Hybrid Auditor Only)", "🏆 Tournament Mode (All 3 Agents)"],
+        index=0,  # Default to Quick Mode
+        horizontal=True,
+        help="Quick Mode: Fast, cost-effective, uses only the validated Hybrid Auditor prompt. Tournament Mode: Compare all 3 agents (Conservative, Strategist, Hybrid Auditor)."
+    )
+    st.markdown("---")
+
     col1, col2 = st.columns(2)
     with col1:
         visa_status = st.selectbox("Target Visa Status", ["F-1 OPT (Stem)", "H-1B", "US Citizen"])
@@ -1015,9 +1059,15 @@ else:
 
             try:
                 # 2. Parallel Execution
-                personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
-                status_text = st.empty()
-                status_text.info("⚡ Agents are running in parallel... (Gemini 2.5 Vision)")
+                # Determine which agents to run based on mode
+                if agent_mode == "⚡ Quick Mode (Hybrid Auditor Only)":
+                    personas = ["Hybrid_Auditor"]
+                    status_text = st.empty()
+                    status_text.info("⚡ Running Hybrid Auditor... (Gemini 3 Flash)")
+                else:
+                    personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
+                    status_text = st.empty()
+                    status_text.info("⚡ Agents are running in parallel... (Gemini 3 Flash)")
 
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     futures = {executor.submit(run_agent, tmp_path, p, visa_status): p for p in personas}
@@ -1068,7 +1118,12 @@ else:
             st.session_state.bulk_session_id = time.strftime("%Y%m%d_%H%M%S")
 
             # Process all PDFs
-            personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
+            # Determine which agents to run based on mode
+            if agent_mode == "⚡ Quick Mode (Hybrid Auditor Only)":
+                personas = ["Hybrid_Auditor"]
+            else:
+                personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
+
             total_files = len(uploaded_files)
 
             # Create progress tracking
@@ -1130,25 +1185,28 @@ else:
         validation_report = st.session_state.get('validation_report', {})
         invalid_gpas = validation_report.get('invalid_gpas_found', [])
 
+        # Get list of agents that were actually run
+        available_agents = list(r.keys())
+
         # Create dict of agent -> has_invalid_gpa
         agent_validation_status = {}
-        for agent_name in ["Conservative", "Strategist", "Hybrid_Auditor"]:
+        for agent_name in available_agents:
             has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
             agent_validation_status[agent_name] = has_invalid
 
         # Build tab names with status indicators
         tab_names = ["📋 Original CV"]
-        for agent in ["Conservative", "Strategist", "Hybrid_Auditor"]:
+        for agent in available_agents:
             if agent_validation_status.get(agent, False):
                 tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
             else:
                 tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
 
-        # Use TABS: Original CV + 3 Generated Versions
-        tab0, tab1, tab2, tab3 = st.tabs(tab_names)
+        # Create tabs dynamically based on number of agents
+        tabs_list = st.tabs(tab_names)
 
         # ORIGINAL CV TAB
-        with tab0:
+        with tabs_list[0]:
             st.markdown("### 📋 Original Uploaded Resume")
             if st.session_state.original_pdf_bytes:
                 # Display original PDF from session state
@@ -1158,11 +1216,8 @@ else:
                 st.warning("Original PDF not found in session state.")
 
         # GENERATED RESUMES TABS
-        tabs = [tab1, tab2, tab3]
-        keys = ["Conservative", "Strategist", "Hybrid_Auditor"]
-
-        for i, key in enumerate(keys):
-            with tabs[i]:
+        for i, key in enumerate(available_agents):
+            with tabs_list[i + 1]:  # +1 because first tab is original CV
                 data = r.get(key, {})
 
                 # Check for errors first
@@ -1177,16 +1232,6 @@ else:
 
                 st.markdown("---")
 
-                # FIDELITY AUDIT (Legacy Integrity Score)
-                fidelity_report = st.session_state.fidelity_reports.get(key, {})
-                if fidelity_report:
-                    if fidelity_report.get("is_safe"):
-                        st.success(f"✅ **Fidelity Audit Passed** ({fidelity_report.get('loss_percentage', 0)}% variance)")
-                    else:
-                        st.warning(f"⚠️ **High Variance Detected** ({fidelity_report.get('loss_percentage', 0)}%). Review for missing data.")
-                        if fidelity_report.get('flagged_words'):
-                            st.write(f"**Potential missing context:** {', '.join(fidelity_report.get('flagged_words', []))}")
-
                 # COMPREHENSIVE QUALITY METRICS
                 comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
                 display_comprehensive_metrics(comprehensive_metrics_report, key)
@@ -1194,17 +1239,30 @@ else:
                 st.markdown("---")
 
                 # SELECT BUTTON (Prominent and centered)
-                col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-                with col_btn2:
-                    if st.button(f"✅ Select {key} as Winner", key=f"btn_{key}", type="primary", use_container_width=True):
+                # In Quick Mode, auto-select Hybrid_Auditor without button click
+                if len(available_agents) == 1 and key == "Hybrid_Auditor":
+                    if not st.session_state.selected_variant:
                         st.session_state.selected_variant = key
                         # Log Data (Flywheel) with validation report and comprehensive metrics
                         validation_report = st.session_state.get('validation_report', None)
                         session_id = st.session_state.get('session_id', None)
                         comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
                         save_training_data(st.session_state.original_filename, key, data, validation_report, session_id, "single", comprehensive_metrics_report)
-                        st.toast(f"✅ {key} selected! Training data saved.")
-                        st.rerun()  # Refresh to show download button
+
+                    st.success(f"✅ **{key} selected** (Quick Mode)")
+                else:
+                    # Tournament Mode: Show selection button
+                    col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+                    with col_btn2:
+                        if st.button(f"✅ Select {key} as Winner", key=f"btn_{key}", type="primary", use_container_width=True):
+                            st.session_state.selected_variant = key
+                            # Log Data (Flywheel) with validation report and comprehensive metrics
+                            validation_report = st.session_state.get('validation_report', None)
+                            session_id = st.session_state.get('session_id', None)
+                            comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
+                            save_training_data(st.session_state.original_filename, key, data, validation_report, session_id, "single", comprehensive_metrics_report)
+                            st.toast(f"✅ {key} selected! Training data saved.")
+                            st.rerun()  # Refresh to show download button
 
         # Show Download Section AFTER Selection
         if st.session_state.selected_variant:
@@ -1312,25 +1370,28 @@ else:
             validation_report = st.session_state.bulk_validation_reports.get(current_filename, {})
             invalid_gpas = validation_report.get('invalid_gpas_found', [])
 
+            # Get list of agents that were actually run
+            available_agents = list(r.keys())
+
             # Create dict of agent -> has_invalid_gpa
             agent_validation_status = {}
-            for agent_name in ["Conservative", "Strategist", "Hybrid_Auditor"]:
+            for agent_name in available_agents:
                 has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
                 agent_validation_status[agent_name] = has_invalid
 
             # Build tab names with status indicators
             tab_names = ["📋 Original CV"]
-            for agent in ["Conservative", "Strategist", "Hybrid_Auditor"]:
+            for agent in available_agents:
                 if agent_validation_status.get(agent, False):
                     tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
                 else:
                     tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
 
-            # Use TABS: Original CV + 3 Generated Versions
-            tab0, tab1, tab2, tab3 = st.tabs(tab_names)
+            # Create tabs dynamically based on number of agents
+            tabs_list = st.tabs(tab_names)
 
             # ORIGINAL CV TAB
-            with tab0:
+            with tabs_list[0]:
                 st.markdown("### 📋 Original Uploaded Resume")
                 original_bytes = st.session_state.bulk_original_pdfs.get(current_filename)
                 if original_bytes:
@@ -1340,11 +1401,8 @@ else:
                     st.warning("Original PDF not found.")
 
             # GENERATED RESUMES TABS
-            tabs = [tab1, tab2, tab3]
-            keys = ["Conservative", "Strategist", "Hybrid_Auditor"]
-
-            for i, key in enumerate(keys):
-                with tabs[i]:
+            for i, key in enumerate(available_agents):
+                with tabs_list[i + 1]:  # +1 because first tab is original CV
                     data = r.get(key, {})
 
                     # Check for errors first
@@ -1359,17 +1417,6 @@ else:
 
                     st.markdown("---")
 
-                    # FIDELITY AUDIT (Legacy Integrity Score)
-                    cv_fidelity_reports = st.session_state.bulk_fidelity_reports.get(current_filename, {})
-                    fidelity_report = cv_fidelity_reports.get(key, {})
-                    if fidelity_report:
-                        if fidelity_report.get("is_safe"):
-                            st.success(f"✅ **Fidelity Audit Passed** ({fidelity_report.get('loss_percentage', 0)}% variance)")
-                        else:
-                            st.warning(f"⚠️ **High Variance Detected** ({fidelity_report.get('loss_percentage', 0)}%). Review for missing data.")
-                            if fidelity_report.get('flagged_words'):
-                                st.write(f"**Potential missing context:** {', '.join(fidelity_report.get('flagged_words', []))}")
-
                     # COMPREHENSIVE QUALITY METRICS
                     cv_comprehensive_metrics = st.session_state.bulk_comprehensive_metrics.get(current_filename, {})
                     comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
@@ -1378,22 +1425,34 @@ else:
                     st.markdown("---")
 
                     # SELECT BUTTON (Prominent and centered)
-                    col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-                    with col_btn2:
-                        # Check if this agent is already selected
-                        current_selection = st.session_state.bulk_selections.get(current_filename)
-                        button_type = "primary" if current_selection == key else "secondary"
-                        button_label = f"✅ Selected: {key}" if current_selection == key else f"Select {key} as Winner"
-
-                        if st.button(button_label, key=f"bulk_btn_{current_filename}_{key}", type=button_type, use_container_width=True):
-                            # Save selection
+                    # In Quick Mode, auto-select Hybrid_Auditor without button click
+                    if len(available_agents) == 1 and key == "Hybrid_Auditor":
+                        if current_filename not in st.session_state.bulk_selections:
                             st.session_state.bulk_selections[current_filename] = key
                             # Log Data (Flywheel) with validation report and comprehensive metrics
                             bulk_session_id = st.session_state.get('bulk_session_id', None)
                             comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
                             save_training_data(current_filename, key, data, validation_report, bulk_session_id, "bulk", comprehensive_metrics_report)
-                            st.toast(f"✅ {key} selected for {current_filename}!")
-                            st.rerun()
+
+                        st.success(f"✅ **{key} selected** (Quick Mode)")
+                    else:
+                        # Tournament Mode: Show selection button
+                        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+                        with col_btn2:
+                            # Check if this agent is already selected
+                            current_selection = st.session_state.bulk_selections.get(current_filename)
+                            button_type = "primary" if current_selection == key else "secondary"
+                            button_label = f"✅ Selected: {key}" if current_selection == key else f"Select {key} as Winner"
+
+                            if st.button(button_label, key=f"bulk_btn_{current_filename}_{key}", type=button_type, use_container_width=True):
+                                # Save selection
+                                st.session_state.bulk_selections[current_filename] = key
+                                # Log Data (Flywheel) with validation report and comprehensive metrics
+                                bulk_session_id = st.session_state.get('bulk_session_id', None)
+                                comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
+                                save_training_data(current_filename, key, data, validation_report, bulk_session_id, "bulk", comprehensive_metrics_report)
+                                st.toast(f"✅ {key} selected for {current_filename}!")
+                                st.rerun()
 
             # VALIDATION REPORT PANEL
             if validation_report and not validation_report.get('valid', True):

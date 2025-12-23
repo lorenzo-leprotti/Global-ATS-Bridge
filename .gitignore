@@ -1,6 +1,94 @@
-node_modules
-dist
+# Global ATS Bridge - .gitignore
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# === Virtual Environments ===
+venv/
+ENV/
+env/
+.venv
+
+# === Streamlit ===
+.streamlit/cache/
+.streamlit/credentials.toml
+.streamlit/secrets.toml
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-server/public
-vite.config.ts.*
+
+# === Testing ===
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+tests/debug_raw_response.txt
+tests/test_output_*.json
+tests/test_metrics_report.json
+
+# === Environment Variables ===
+.env
+.env.local
+*.env
+
+# === Logs ===
+*.log
+streamlit.log
+nohup.out
+
+# === Data (Optional - Uncomment to ignore training data) ===
+# data/training_data.jsonl
+# data/*_backup*.jsonl
+
+# === Temporary Files ===
+*.tmp
+*.bak
+*.swp
+*.pid
+.cache/
+
+# === OS Generated ===
+Thumbs.db
+.DS_Store
+Desktop.ini
+$RECYCLE.BIN/
+
+# === Archive (Legacy Files) ===
+archive/
+legacy_v1/
+
+# === Node.js (Legacy from Replit) ===
+node_modules/
+dist/
+package-lock.json
+.replit
+
+# === Other ===
 *.tar.gz
+*.zip
+test_cvs/*.pdf  # Optional: Ignore test PDFs

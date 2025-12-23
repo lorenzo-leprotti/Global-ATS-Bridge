@@ -256,6 +256,90 @@ def calculate_section_density(output_json):
         "score": min(1.0, avg_density / 4.0)  # Optimal = 4 bullets
     }
 
+# === METRIC 8: COMPLETENESS CHECK (ANTI-TRUNCATION) ===
+def calculate_completeness_check(output_json):
+    """
+    Detects truncated or incomplete text (ellipses, etc., shorthand).
+    Directly tests the Anti-Lazy policy from prompts.
+
+    Returns:
+        dict with truncation_issues, total_truncated, status
+    """
+    truncation_issues = []
+
+    def check_text(text, location):
+        """Helper to check a single text string for truncation markers."""
+        if not isinstance(text, str):
+            return
+
+        issues = []
+
+        # Check for ellipses
+        if "..." in text:
+            issues.append("Contains ellipses (...)")
+
+        # Check for etc.
+        if re.search(r'\betc\.?\b', text, re.IGNORECASE):
+            issues.append("Contains 'etc.'")
+
+        # Check for shorthand phrases
+        shorthand_patterns = [
+            r'\bsame as above\b',
+            r'\bsee above\b',
+            r'\band more\b',
+            r'\bso on\b',
+            r'\bto be continued\b'
+        ]
+        for pattern in shorthand_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                issues.append(f"Contains shorthand: '{pattern}'")
+
+        # Check for suspiciously short bullets (< 10 chars for experience/education)
+        if len(text.strip()) < 10 and "experience" in location.lower():
+            issues.append(f"Suspiciously short ({len(text)} chars)")
+
+        if issues:
+            truncation_issues.append({
+                "location": location,
+                "text": text[:100],  # First 100 chars for display
+                "issues": issues
+            })
+
+    # Scan all sections
+    for section in output_json.get('sections', []):
+        category = section.get('us_category', 'Unknown')
+        content = section.get('content', [])
+
+        if category in ['Experience', 'Education']:
+            # Check bullets in structured content
+            if isinstance(content, list):
+                for idx, entry in enumerate(content):
+                    if isinstance(entry, dict):
+                        # Check header/subheader
+                        check_text(entry.get('header', ''), f"{category}[{idx}].header")
+                        check_text(entry.get('subheader', ''), f"{category}[{idx}].subheader")
+
+                        # Check bullets
+                        bullets = entry.get('bullets', [])
+                        for bullet_idx, bullet in enumerate(bullets):
+                            check_text(bullet, f"{category}[{idx}].bullets[{bullet_idx}]")
+
+        elif category in ['Summary', 'Skills']:
+            # Check simple string arrays
+            if isinstance(content, list):
+                for idx, item in enumerate(content):
+                    check_text(item, f"{category}[{idx}]")
+
+    total_truncated = len(truncation_issues)
+    is_complete = total_truncated == 0
+
+    return {
+        "truncation_issues": truncation_issues[:10],  # Limit to first 10 for display
+        "total_truncated": total_truncated,
+        "status": "✅" if is_complete else "❌",
+        "score": max(0, 1 - (total_truncated * 0.1))  # -0.1 per truncation
+    }
+
 # === AGGREGATE METRICS RUNNER ===
 def run_all_metrics(original_text, output_json):
     """
@@ -275,18 +359,20 @@ def run_all_metrics(original_text, output_json):
         "structural_compliance": calculate_structural_compliance(output_json),
         "translation_quality": calculate_translation_quality(original_text, output_json),
         "field_coverage": calculate_field_coverage(output_json),
-        "section_density": calculate_section_density(output_json)
+        "section_density": calculate_section_density(output_json),
+        "completeness_check": calculate_completeness_check(output_json)
     }
 
     # Calculate weighted overall score
     weights = {
-        "bullet_preservation": 0.25,  # Most critical
-        "json_integrity": 0.15,
-        "phantom_detection": 0.10,
-        "structural_compliance": 0.15,
-        "translation_quality": 0.20,
+        "bullet_preservation": 0.20,  # Critical
+        "json_integrity": 0.10,
+        "phantom_detection": 0.08,
+        "structural_compliance": 0.12,
+        "translation_quality": 0.15,
         "field_coverage": 0.10,
-        "section_density": 0.05
+        "section_density": 0.05,
+        "completeness_check": 0.20  # CRITICAL - Anti-truncation
     }
 
     overall_score = sum(metrics[key]["score"] * weights[key] for key in weights.keys())
