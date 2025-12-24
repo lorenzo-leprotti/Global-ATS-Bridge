@@ -112,7 +112,7 @@ def test_agent(pdf_path, persona, visa_status):
         # Create generation config
         gen_config = genai.GenerationConfig(
             temperature=0.0,
-            max_output_tokens=8192,
+            max_output_tokens=16384,  # Increased from 8192 to handle longer CVs
             response_mime_type="application/json"
         )
 
@@ -128,6 +128,14 @@ def test_agent(pdf_path, persona, visa_status):
         raw_text = response.text
         print(f"\n📝 Raw response length: {len(raw_text)} characters")
 
+        # Check if response was truncated
+        if hasattr(response, 'candidates') and response.candidates:
+            finish_reason = response.candidates[0].finish_reason
+            print(f"🏁 Finish reason: {finish_reason}")
+            if finish_reason == 2:  # MAX_TOKENS
+                print("⚠️  WARNING: Response was truncated due to max_output_tokens limit!")
+                print("   Consider increasing max_output_tokens in generation config")
+
         # Save raw response for debugging
         with open("debug_raw_response.txt", "w", encoding="utf-8") as f:
             f.write(raw_text)
@@ -135,16 +143,32 @@ def test_agent(pdf_path, persona, visa_status):
 
         clean_text = raw_text.replace("```json", "").replace("```", "").strip()
 
+        # Save cleaned text for debugging
+        with open("debug_cleaned_response.txt", "w", encoding="utf-8") as f:
+            f.write(clean_text)
+        print("💾 Cleaned response saved to: debug_cleaned_response.txt")
+
         try:
             result_json = json.loads(clean_text)
             print("✅ Response generated successfully")
             return result_json
         except json.JSONDecodeError as json_err:
             print(f"❌ JSON Parse Error: {json_err}")
-            print(f"📄 First 500 chars of cleaned text:")
+            print(f"   Error at line {json_err.lineno}, column {json_err.colno}")
+            print(f"   Error message: {json_err.msg}")
+            print(f"\n📄 First 500 chars of cleaned text:")
             print(clean_text[:500])
             print(f"\n📄 Last 500 chars of cleaned text:")
             print(clean_text[-500:])
+
+            # Try to show the problematic area
+            if json_err.pos:
+                start = max(0, json_err.pos - 100)
+                end = min(len(clean_text), json_err.pos + 100)
+                print(f"\n📄 Text around error position (char {json_err.pos}):")
+                print(clean_text[start:end])
+                print(" " * (json_err.pos - start) + "^" + " ERROR HERE")
+
             return None
 
     except Exception as e:

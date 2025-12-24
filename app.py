@@ -14,6 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 import prompts  # Prompt library for agent personas
 import metrics  # Comprehensive quality metrics
+import enhanced_metrics  # RL reward system and advanced metrics
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Global ATS Bridge (V3 Tournament - Gemini 3 Flash)", layout="wide")
@@ -143,7 +144,20 @@ def display_comprehensive_metrics(metrics_report, agent_name):
     grade = metrics_report.get('grade', 'F')
     status = metrics_report.get('overall_status', '❌')
 
-    with st.expander(f"📊 Quality Metrics: {overall:.2f} ({grade}) {status}", expanded=False):
+    # RL Reward (Prominently displayed)
+    rl_reward = metrics_report.get('rl_reward', {})
+    rl_score = rl_reward.get('reward', overall)
+    rl_grade = rl_reward.get('grade', grade)
+
+    # Display RL Reward as primary metric (collapsed by default, expandable for details)
+    st.metric(
+        label=f"🎯 RL Reward Score ({agent_name})",
+        value=f"{rl_score:.3f}",
+        delta=f"Grade: {rl_grade}",
+        help="Comprehensive score for RL training: combines base metrics (60%), semantic fidelity (25%), and ATS compliance (15%)"
+    )
+
+    with st.expander(f"📊 Detailed Metrics Breakdown: Base {overall:.2f} ({grade}) {status}", expanded=False):
         # Create metrics grid
         col1, col2, col3, col4 = st.columns(4)
 
@@ -265,6 +279,64 @@ def display_comprehensive_metrics(metrics_report, agent_name):
                 st.text(f"  Text: {issue.get('text', 'N/A')}")
                 st.text(f"  Issues: {', '.join(issue.get('issues', []))}")
                 st.markdown("---")
+
+    # Enhanced Metrics Display (inside a sub-expander)
+    if rl_reward and "enhanced_metrics" in rl_reward:
+        with st.expander("🔬 Enhanced RL Metrics (Advanced)", expanded=False):
+            enhanced = rl_reward.get("enhanced_metrics", {})
+
+            col_e1, col_e2, col_e3, col_e4 = st.columns(4)
+
+            with col_e1:
+                entity_pres = enhanced.get("entity_preservation", {})
+                st.metric(
+                    "Entity Preservation",
+                    f"{entity_pres.get('overall_preservation', 0):.0%}",
+                    help="Preservation of dates, numbers, emails, phones"
+                )
+                st.caption(f"{entity_pres.get('status', '❌')} Score: {entity_pres.get('score', 0):.2f}")
+
+            with col_e2:
+                info_density = enhanced.get("information_density", {})
+                st.metric(
+                    "Information Density",
+                    f"{info_density.get('density_ratio', 0):.2f}x",
+                    help="Ratio of output words to input words (ideal: 0.85-1.15)"
+                )
+                st.caption(f"{info_density.get('status', '❌')} Score: {info_density.get('score', 0):.2f}")
+
+            with col_e3:
+                action_verbs = enhanced.get("action_verb_quality", {})
+                st.metric(
+                    "Action Verb Quality",
+                    f"{action_verbs.get('strong_ratio', 0):.0%}",
+                    help=f"Strong: {action_verbs.get('strong_verb_count', 0)}, Weak: {action_verbs.get('weak_verb_count', 0)}"
+                )
+                st.caption(f"{action_verbs.get('status', '❌')} Score: {action_verbs.get('score', 0):.2f}")
+
+            with col_e4:
+                ats = enhanced.get("ats_compliance", {})
+                st.metric(
+                    "ATS Compliance",
+                    f"{ats.get('compliance_score', 0):.0%}",
+                    help="ATS-friendliness checks"
+                )
+                st.caption(f"{ats.get('status', '❌')} Score: {ats.get('score', 0):.2f}")
+
+            # Component Contributions
+            st.markdown("---")
+            st.markdown("**RL Reward Component Contributions:**")
+            contributions = rl_reward.get("weighted_contributions", {})
+            for component, value in contributions.items():
+                weight = rl_reward.get("weights", {}).get(component, 0)
+                st.text(f"  • {component}: {value:.4f} (weight: {weight:.0%})")
+
+            # Hard Constraints
+            hard_constraints = rl_reward.get("hard_constraints", {})
+            if not hard_constraints.get("passed", True):
+                st.error(f"❌ Hard Constraints Failed: {hard_constraints.get('fail_count', 0)} checks failed")
+                failed = [k for k, v in hard_constraints.get("checks", {}).items() if not v]
+                st.text(f"Failed checks: {', '.join(failed)}")
 
 # --- 2B. THE HANDS: DYNAMIC PDF GENERATOR ---
 def generate_dynamic_pdf(data):
@@ -538,13 +610,27 @@ def run_agent(file_path, persona, visa_status):
 
             # 6. Run Comprehensive Metrics
             comprehensive_metrics = metrics.run_all_metrics(original_text, result_json)
+
+            # 7. Calculate RL Reward (Enhanced Metrics)
+            rl_reward = enhanced_metrics.calculate_rl_reward(
+                original_text,
+                result_json,
+                raw_text,
+                comprehensive_metrics
+            )
+            comprehensive_metrics["rl_reward"] = rl_reward
         except Exception as metrics_error:
             # If metrics fail, continue with empty report
             comprehensive_metrics = {
                 "error": str(metrics_error),
                 "overall_score": 0.0,
                 "overall_status": "❌",
-                "grade": "F"
+                "grade": "F",
+                "rl_reward": {
+                    "reward": 0.0,
+                    "grade": "F",
+                    "reason": str(metrics_error)
+                }
             }
 
         return persona, result_json, fidelity_report, comprehensive_metrics
@@ -594,6 +680,81 @@ def run_admin_dashboard():
 
     last_active = data[-1]['timestamp']
     col4.metric("🕐 Last Activity", last_active.split()[1])  # Show time only
+
+    st.divider()
+
+    # 3.2 RL REWARD STATISTICS (BULK SESSION AVERAGES) - DISPLAYED FIRST
+    st.subheader("🎯 RL Reward Statistics (Bulk Average)")
+
+    # Extract all RL rewards from training data
+    all_rl_rewards = []
+    for d in data:
+        comp_metrics = d.get('comprehensive_metrics', {})
+        rl_reward = comp_metrics.get('rl_reward', {})
+        if rl_reward and 'reward' in rl_reward:
+            all_rl_rewards.append(rl_reward)
+
+    if all_rl_rewards:
+        # Calculate bulk statistics using enhanced_metrics
+        bulk_stats = enhanced_metrics.calculate_bulk_statistics(all_rl_rewards)
+
+        # Display prominently at the top
+        col_bulk1, col_bulk2, col_bulk3, col_bulk4, col_bulk5 = st.columns(5)
+
+        with col_bulk1:
+            st.metric(
+                "📊 Mean RL Reward",
+                f"{bulk_stats['mean_reward']:.3f}",
+                delta=f"±{bulk_stats['std_reward']:.3f}",
+                help="Average reward across all processed CVs"
+            )
+
+        with col_bulk2:
+            st.metric(
+                "📈 Median Reward",
+                f"{bulk_stats['median_reward']:.3f}",
+                help="Middle value of all rewards"
+            )
+
+        with col_bulk3:
+            st.metric(
+                "⬆️ Max Reward",
+                f"{bulk_stats['max_reward']:.3f}",
+                help="Best score achieved"
+            )
+
+        with col_bulk4:
+            st.metric(
+                "⬇️ Min Reward",
+                f"{bulk_stats['min_reward']:.3f}",
+                help="Lowest score in dataset"
+            )
+
+        with col_bulk5:
+            st.metric(
+                "✅ Passing Rate",
+                f"{bulk_stats['passing_rate']:.0%}",
+                help="Percentage of CVs scoring >= 0.80"
+            )
+
+        # Grade distribution chart
+        st.markdown("**Grade Distribution:**")
+        grade_dist = bulk_stats['grade_distribution']
+        grade_order = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'D', 'F']
+        for grade in grade_order:
+            count = grade_dist.get(grade, 0)
+            if count > 0:
+                percentage = (count / bulk_stats['count']) * 100
+                st.progress(percentage / 100, text=f"{grade}: {count} CVs ({percentage:.1f}%)")
+
+        # Component-wise averages in an expander
+        with st.expander("📊 Component-wise Averages (RL Breakdown)", expanded=False):
+            comp_avgs = bulk_stats.get('component_averages', {})
+            st.markdown("**Average scores for each RL component:**")
+            for component, avg_score in comp_avgs.items():
+                st.text(f"  • {component}: {avg_score:.4f}")
+    else:
+        st.info("No RL reward data available yet. Process some CVs to see statistics!")
 
     st.divider()
 
