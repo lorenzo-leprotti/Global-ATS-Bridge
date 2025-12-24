@@ -593,7 +593,37 @@ def run_agent(file_path, persona, visa_status):
         raw_text = response.text
         # Sometimes the model returns markdown code blocks, which breaks json.loads
         clean_text = raw_text.replace("```json", "").replace("```", "").strip()
-        result_json = json.loads(clean_text)
+
+        # Try to parse JSON with better error handling
+        try:
+            result_json = json.loads(clean_text)
+        except json.JSONDecodeError as e:
+            # Save debug info
+            debug_dir = "debug_json_errors"
+            os.makedirs(debug_dir, exist_ok=True)
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            debug_file = f"{debug_dir}/{persona}_{timestamp}.txt"
+
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                f.write(f"JSON Parse Error: {str(e)}\n")
+                f.write(f"Error at line {e.lineno}, column {e.colno}\n\n")
+                f.write("=" * 60 + "\n")
+                f.write("RAW RESPONSE:\n")
+                f.write("=" * 60 + "\n")
+                f.write(raw_text)
+                f.write("\n\n")
+                f.write("=" * 60 + "\n")
+                f.write("CLEANED TEXT:\n")
+                f.write("=" * 60 + "\n")
+                f.write(clean_text)
+
+            # Return error with helpful context
+            error_snippet = clean_text[max(0, e.pos-100):min(len(clean_text), e.pos+100)]
+            return persona, {
+                "error": f"JSON parse error at line {e.lineno}, col {e.colno}: {str(e)}",
+                "error_context": error_snippet,
+                "debug_file": debug_file
+            }, None, None
 
         # 4. Run Fidelity Check (Legacy metric)
         fidelity_report = verify_fidelity(file_path, result_json)
@@ -1384,6 +1414,11 @@ else:
                 # Check for errors first
                 if "error" in data:
                     st.error(f"❌ {key} Failed:\n{data['error']}")
+                    if "debug_file" in data:
+                        st.info(f"📁 Debug file saved: `{data['debug_file']}`")
+                    if "error_context" in data:
+                        with st.expander("🔍 Error Context (around problem area)"):
+                            st.code(data['error_context'], language=None)
                     continue  # Skip the rest for this agent
 
                 # Full PDF Preview (Full Width!)
@@ -1569,6 +1604,11 @@ else:
                     # Check for errors first
                     if "error" in data:
                         st.error(f"❌ {key} Failed:\n{data['error']}")
+                        if "debug_file" in data:
+                            st.info(f"📁 Debug file saved: `{data['debug_file']}`")
+                        if "error_context" in data:
+                            with st.expander("🔍 Error Context (around problem area)"):
+                                st.code(data['error_context'], language=None)
                         continue  # Skip the rest for this agent
 
                     # Full PDF Preview (Full Width!)
