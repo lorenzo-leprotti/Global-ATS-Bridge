@@ -1,0 +1,127 @@
+JSON Parse Error: Expecting value: line 58 column 66 (char 2262)
+Error at line 58, column 66
+
+============================================================
+RAW RESPONSE:
+============================================================
+{
+  "contact_info": {
+    "name": "■■■",
+    "email": "■■■@gmail.com",
+    "phone": "+86 18 8 2 9",
+    "location": "Hangzhou, China",
+    "linkedin": "linkedin.com/in/■■■"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Alibaba Group",
+          "subheader": "■■■■■",
+          "date": "December 2022 - Present",
+          "bullets": [
+            "Implemented Docker and Kubernetes CI/CD pipelines, improving efficiency by 43%",
+            "Managed 4 projects resulting in a 45% increase in performance",
+            "Optimized system architecture, reducing latency by 42%",
+            "Developed 4 features and resolved 341 issues",
+            "Reduced software bug frequency by 57%"
+          ]
+        },
+        {
+          "header": "Baidu",
+          "subheader": "■■■■■■■",
+          "date": "December 2017 - December 2021",
+          "bullets": [
+            "Delivered 3 major releases and resolved 504 tickets",
+            "Decreased system bug rate by 25%",
+            "Led 5 teams to achieve a 43% growth in user engagement",
+            "Applied machine learning models to 566K+ datasets, improving accuracy by 54%",
+            "Managed budget of ¥3958",
+            "Collaborated on cross-functional engineering projects"
+          ]
+        },
+        {
+          "header": "Tencent",
+          "subheader": "■■■■■",
+          "date": "December 2014 - December 2019",
+          "bullets": [
+            "Scaled cloud infrastructure for 800K+ users, increasing reliability by 33%",
+            "Supervised 8 engineers to improve system throughput by 56%",
+            "Reduced production bug reports by 55%",
+            "Maintained high-quality code standards and documentation",
+            "Developed 6 features and handled 788 requests"
+          ]
+        },
+        {
+          "header": "Baidu",
+          "subheader": "■■■■",
+          "date": "December 2015 - December 2017",
+          "bullets": [
+            "Optimized financial transactions totaling ¥1023",
+            "Deployed Docker and Kubernetes CI/CD workflows, increasing deployment speed by 20%",
+            "Ensured system reliability and backend performance",
+            
+
+============================================================
+CLEANED TEXT:
+============================================================
+{
+  "contact_info": {
+    "name": "■■■",
+    "email": "■■■@gmail.com",
+    "phone": "+86 18 8 2 9",
+    "location": "Hangzhou, China",
+    "linkedin": "linkedin.com/in/■■■"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Alibaba Group",
+          "subheader": "■■■■■",
+          "date": "December 2022 - Present",
+          "bullets": [
+            "Implemented Docker and Kubernetes CI/CD pipelines, improving efficiency by 43%",
+            "Managed 4 projects resulting in a 45% increase in performance",
+            "Optimized system architecture, reducing latency by 42%",
+            "Developed 4 features and resolved 341 issues",
+            "Reduced software bug frequency by 57%"
+          ]
+        },
+        {
+          "header": "Baidu",
+          "subheader": "■■■■■■■",
+          "date": "December 2017 - December 2021",
+          "bullets": [
+            "Delivered 3 major releases and resolved 504 tickets",
+            "Decreased system bug rate by 25%",
+            "Led 5 teams to achieve a 43% growth in user engagement",
+            "Applied machine learning models to 566K+ datasets, improving accuracy by 54%",
+            "Managed budget of ¥3958",
+            "Collaborated on cross-functional engineering projects"
+          ]
+        },
+        {
+          "header": "Tencent",
+          "subheader": "■■■■■",
+          "date": "December 2014 - December 2019",
+          "bullets": [
+            "Scaled cloud infrastructure for 800K+ users, increasing reliability by 33%",
+            "Supervised 8 engineers to improve system throughput by 56%",
+            "Reduced production bug reports by 55%",
+            "Maintained high-quality code standards and documentation",
+            "Developed 6 features and handled 788 requests"
+          ]
+        },
+        {
+          "header": "Baidu",
+          "subheader": "■■■■",
+          "date": "December 2015 - December 2017",
+          "bullets": [
+            "Optimized financial transactions totaling ¥1023",
+            "Deployed Docker and Kubernetes CI/CD workflows, increasing deployment speed by 20%",
+            "Ensured system reliability and backend performance",

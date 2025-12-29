@@ -1,0 +1,234 @@
+{
+  "timestamp": "2025-12-25 22:58:55",
+  "agent": "Hybrid_Auditor",
+  "total_cvs": 25,
+  "successful": 25,
+  "failed": 0,
+  "success_rate": 1.0,
+  "bulk_statistics": {
+    "count": 25,
+    "mean_reward": 0.8955,
+    "median_reward": 0.8913,
+    "std_reward": 0.0364,
+    "min_reward": 0.8293,
+    "max_reward": 0.9511,
+    "grade_distribution": {
+      "B+": 8,
+      "A-": 4,
+      "B": 6,
+      "A": 6,
+      "B-": 1
+    },
+    "component_averages": {
+      "base_overall": 0.9352,
+      "entity_preservation": 0.9169,
+      "information_density": 1.0,
+      "action_verb_quality": 0.9947,
+      "ats_compliance": 0.8889
+    },
+    "passing_rate": 1.0
+  },
+  "cv_scores": [
+    {
+      "Filename": "cv_indian_Rudra_Bora_20251223_193501.pdf",
+      "Candidate": "RUDRA BORA",
+      "RL_Score": 0.9511,
+      "Grade": "A",
+      "Base_Score": 1.0,
+      "Processing_Time": "338.0s"
+    },
+    {
+      "Filename": "cv_indian_Hemal_Naik_20251224_172614.pdf",
+      "Candidate": "HEMAL NAIK",
+      "RL_Score": 0.9473,
+      "Grade": "A",
+      "Base_Score": 0.99,
+      "Processing_Time": "54.8s"
+    },
+    {
+      "Filename": "cv_indian_Frederick_Saxena_20251224_172614.pdf",
+      "Candidate": "FREDERICK SAXENA",
+      "RL_Score": 0.9473,
+      "Grade": "A",
+      "Base_Score": 0.99,
+      "Processing_Time": "305.2s"
+    },
+    {
+      "Filename": "cv_german_Reingard_Möchlichen_B.Sc._20251224_172614.pdf",
+      "Candidate": "REINGARD MÖCHLICHEN B.SC.",
+      "RL_Score": 0.9413,
+      "Grade": "A",
+      "Base_Score": 0.98,
+      "Processing_Time": "307.0s"
+    },
+    {
+      "Filename": "cv_italian_Fiamma_Combi_20251224_172614.pdf",
+      "Candidate": "FIAMMA COMBI",
+      "RL_Score": 0.9353,
+      "Grade": "A",
+      "Base_Score": 0.97,
+      "Processing_Time": "298.4s"
+    },
+    {
+      "Filename": "cv_indian_Januja_Dhawan_20251221_224022.pdf",
+      "Candidate": "JANUJA DHAWAN",
+      "RL_Score": 0.9311,
+      "Grade": "A",
+      "Base_Score": 1.0,
+      "Processing_Time": "323.3s"
+    },
+    {
+      "Filename": "cv_french_Margaret_Hamel_de_la_Renaud_20251221_224022.pdf",
+      "Candidate": "MARGARET HAMEL DE LA RENAUD",
+      "RL_Score": 0.9233,
+      "Grade": "A-",
+      "Base_Score": 0.95,
+      "Processing_Time": "290.7s"
+    },
+    {
+      "Filename": "cv_french_Anaïs_Vallée_20251224_172614.pdf",
+      "Candidate": "ANAÏS VALLÉE",
+      "RL_Score": 0.9233,
+      "Grade": "A-",
+      "Base_Score": 0.95,
+      "Processing_Time": "299.6s"
+    },
+    {
+      "Filename": "cv_french_Nicolas_de_la_Becker_20251223_193501.pdf",
+      "Candidate": "NICOLAS DE LA BECKER",
+      "RL_Score": 0.9233,
+      "Grade": "A-",
+      "Base_Score": 0.95,
+      "Processing_Time": "40.8s"
+    },
+    {
+      "Filename": "cv_italian_Tullio_Cagnin_20251223_193501.pdf",
+      "Candidate": "TULLIO CAGNIN",
+      "RL_Score": 0.9208,
+      "Grade": "A-",
+      "Base_Score": 0.95,
+      "Processing_Time": "43.4s"
+    },
+    {
+      "Filename": "cv_indian_Charles_Gaba_20251223_193501.pdf",
+      "Candidate": "CHARLES GABA",
+      "RL_Score": 0.8973,
+      "Grade": "B+",
+      "Base_Score": 0.94,
+      "Processing_Time": "28.4s"
+    },
+    {
+      "Filename": "cv_french_Auguste_Guichard_20251224_172614.pdf",
+      "Candidate": "AUGUSTE GUICHARD",
+      "RL_Score": 0.8913,
+      "Grade": "B+",
+      "Base_Score": 0.93,
+      "Processing_Time": "48.8s"
+    },
+    {
+      "Filename": "cv_french_Michel_Muller_20251223_193501.pdf",
+      "Candidate": "MICHEL MULLER",
+      "RL_Score": 0.8913,
+      "Grade": "B+",
+      "Base_Score": 0.93,
+      "Processing_Time": "296.7s"
+    },
+    {
+      "Filename": "cv_indian_Jatin_Kapoor_20251224_172614.pdf",
+      "Candidate": "JATIN KAPOOR",
+      "RL_Score": 0.8913,
+      "Grade": "B+",
+      "Base_Score": 0.93,
+      "Processing_Time": "38.6s"
+    },
+    {
+      "Filename": "cv_indian_Waida_Bhattacharyya_20251224_172614.pdf",
+      "Candidate": "WAIDA BHATTACHARYYA",
+      "RL_Score": 0.8833,
+      "Grade": "B+",
+      "Base_Score": 0.95,
+      "Processing_Time": "34.4s"
+    },
+    {
+      "Filename": "cv_italian_Sig.ra_Rossana_Murri_20251224_172614.pdf",
+      "Candidate": "Rossana Murri",
+      "RL_Score": 0.8829,
+      "Grade": "B+",
+      "Base_Score": 0.95,
+      "Processing_Time": "358.0s"
+    },
+    {
+      "Filename": "cv_french_Josette_Charles-Jacques_20251223_193501.pdf",
+      "Candidate": "JOSETTE CHARLES-JACQUES",
+      "RL_Score": 0.8793,
+      "Grade": "B+",
+      "Base_Score": 0.91,
+      "Processing_Time": "304.9s"
+    },
+    {
+      "Filename": "cv_german_Franco_Heydrich_20251224_172614.pdf",
+      "Candidate": "FRANCO HEYDRICH",
+      "RL_Score": 0.8793,
+      "Grade": "B+",
+      "Base_Score": 0.91,
+      "Processing_Time": "293.5s"
+    },
+    {
+      "Filename": "cv_french_Simone_Faure-Da_Costa_20251224_172613.pdf",
+      "Candidate": "SIMONE FAURE-DA COSTA",
+      "RL_Score": 0.8638,
+      "Grade": "B",
+      "Base_Score": 0.92,
+      "Processing_Time": "294.5s"
+    },
+    {
+      "Filename": "cv_french_Augustin_Le_Guichard_20251224_172614.pdf",
+      "Candidate": "AUGUSTIN LE GUICHARD",
+      "RL_Score": 0.8593,
+      "Grade": "B",
+      "Base_Score": 0.91,
+      "Processing_Time": "303.9s"
+    },
+    {
+      "Filename": "cv_german_Cynthia_Förster_20251224_172614.pdf",
+      "Candidate": "CYNTHIA FÖRSTER",
+      "RL_Score": 0.8553,
+      "Grade": "B",
+      "Base_Score": 0.87,
+      "Processing_Time": "293.7s"
+    },
+    {
+      "Filename": "cv_german_Simon_Hornig_B.Sc._20251223_193501.pdf",
+      "Candidate": "SIMON HORNIG B.SC.",
+      "RL_Score": 0.8553,
+      "Grade": "B",
+      "Base_Score": 0.87,
+      "Processing_Time": "303.2s"
+    },
+    {
+      "Filename": "cv_german_Dr._Arndt_Ortmann_MBA._20251223_193501.pdf",
+      "Candidate": "DR. ARNDT ORTMANN MBA.",
+      "RL_Score": 0.8527,
+      "Grade": "B",
+      "Base_Score": 0.9,
+      "Processing_Time": "56.9s"
+    },
+    {
+      "Filename": "cv_german_Hakan_Rörricht_B.Sc._20251224_172614.pdf",
+      "Candidate": "Hakan Rörricht, B.Sc.",
+      "RL_Score": 0.832,
+      "Grade": "B",
+      "Base_Score": 0.87,
+      "Processing_Time": "298.6s"
+    },
+    {
+      "Filename": "cv_german_Swetlana_Wilmsen_20251224_172614.pdf",
+      "Candidate": "SWETLANA WILMSEN",
+      "RL_Score": 0.8293,
+      "Grade": "B-",
+      "Base_Score": 0.86,
+      "Processing_Time": "298.0s"
+    }
+  ],
+  "failed_files": []
+}

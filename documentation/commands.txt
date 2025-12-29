@@ -1,6 +1,7 @@
 commands
   open virtual env: source venv/bin/activate
-  run pdf_generator_script.py: python3 tests/pdf_generator_script.py
+  run pdf_generator_script.py: 
+  
   launch streamlit: streamlit run app.py
   github sequence:
 - git add .

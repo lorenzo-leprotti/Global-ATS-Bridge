@@ -1,0 +1,51 @@
+{
+  "total_cvs": 25,
+  "successful": 25,
+  "exported": 7,
+  "threshold": 0.9,
+  "output_dir": "rl_training_cvs",
+  "exported_files": [
+    {
+      "original": "cv_french_Margaret_Hamel_de_la_Renaud_20251221_224022.pdf",
+      "exported_as": "cv_french_Margaret_Hamel_de_la_Renaud_20251221_224022_score0.923_A-.pdf",
+      "score": 0.9233,
+      "grade": "A-"
+    },
+    {
+      "original": "cv_indian_Hemal_Naik_20251224_172614.pdf",
+      "exported_as": "cv_indian_Hemal_Naik_20251224_172614_score0.935_A.pdf",
+      "score": 0.9353,
+      "grade": "A"
+    },
+    {
+      "original": "cv_indian_Frederick_Saxena_20251224_172614.pdf",
+      "exported_as": "cv_indian_Frederick_Saxena_20251224_172614_score0.947_A.pdf",
+      "score": 0.9473,
+      "grade": "A"
+    },
+    {
+      "original": "cv_indian_Jatin_Kapoor_20251224_172614.pdf",
+      "exported_as": "cv_indian_Jatin_Kapoor_20251224_172614_score0.929_A-.pdf",
+      "score": 0.9293,
+      "grade": "A-"
+    },
+    {
+      "original": "cv_italian_Fiamma_Combi_20251224_172614.pdf",
+      "exported_as": "cv_italian_Fiamma_Combi_20251224_172614_score0.929_A-.pdf",
+      "score": 0.9293,
+      "grade": "A-"
+    },
+    {
+      "original": "cv_italian_Sig.ra_Rossana_Murri_20251224_172614.pdf",
+      "exported_as": "cv_italian_Sig.ra_Rossana_Murri_20251224_172614_score0.923_A-.pdf",
+      "score": 0.9229,
+      "grade": "A-"
+    },
+    {
+      "original": "cv_italian_Tullio_Cagnin_20251223_193501.pdf",
+      "exported_as": "cv_italian_Tullio_Cagnin_20251223_193501_score0.933_A.pdf",
+      "score": 0.9328,
+      "grade": "A"
+    }
+  ]
+}

@@ -17,7 +17,7 @@ import metrics  # Comprehensive quality metrics
 import enhanced_metrics  # RL reward system and advanced metrics
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Global ATS Bridge (Hybrid Auditor - Gemini 3 Flash)", layout="wide")
+st.set_page_config(page_title="Global ATS Bridge (V3 Tournament - Gemini 3 Flash)", layout="wide")
 
 # --- RETRY HELPER ---
 def retry_with_backoff(func, max_retries=3):
@@ -575,7 +575,7 @@ def run_agent(file_path, persona, visa_status):
         # Create generation config for deterministic output
         gen_config = genai.GenerationConfig(
             temperature=0.0,  # Maximum determinism, no creativity
-            max_output_tokens=65536,  # Maximum supported by Gemini - handles very long CVs
+            max_output_tokens=16384,  # Increased from 8192 to handle longer CVs
             response_mime_type="application/json"
         )
 
@@ -588,17 +588,6 @@ def run_agent(file_path, persona, visa_status):
         response = retry_with_backoff(
             lambda: model.generate_content([prompt, f"USER VISA: {visa_status}", gemini_file])
         )
-
-        # Check if response was truncated
-        if hasattr(response, 'candidates') and response.candidates:
-            finish_reason = response.candidates[0].finish_reason
-            # finish_reason: 1=STOP (normal), 2=MAX_TOKENS (truncated), 3=SAFETY, 4=RECITATION, 5=OTHER
-            if finish_reason == 2:  # MAX_TOKENS
-                return persona, {
-                    "error": f"Response truncated due to token limit. Try reducing CV length or increase max_output_tokens.",
-                    "finish_reason": "MAX_TOKENS",
-                    "partial_response": response.text[:500] + "..."
-                }, None, None
 
         # 3. Clean and Parse JSON (Fixes the "Empty" issue)
         raw_text = response.text
@@ -615,18 +604,9 @@ def run_agent(file_path, persona, visa_status):
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             debug_file = f"{debug_dir}/{persona}_{timestamp}.txt"
 
-            # Check finish reason for additional context
-            finish_reason_str = "UNKNOWN"
-            if hasattr(response, 'candidates') and response.candidates:
-                finish_reason = response.candidates[0].finish_reason
-                finish_reason_map = {1: "STOP (normal)", 2: "MAX_TOKENS (truncated)", 3: "SAFETY", 4: "RECITATION", 5: "OTHER"}
-                finish_reason_str = finish_reason_map.get(finish_reason, f"UNKNOWN ({finish_reason})")
-
             with open(debug_file, 'w', encoding='utf-8') as f:
                 f.write(f"JSON Parse Error: {str(e)}\n")
-                f.write(f"Error at line {e.lineno}, column {e.colno}\n")
-                f.write(f"Finish Reason: {finish_reason_str}\n")
-                f.write(f"Response Length: {len(raw_text)} characters\n\n")
+                f.write(f"Error at line {e.lineno}, column {e.colno}\n\n")
                 f.write("=" * 60 + "\n")
                 f.write("RAW RESPONSE:\n")
                 f.write("=" * 60 + "\n")
@@ -1174,18 +1154,27 @@ def run_admin_dashboard():
 
 # --- 6. MAIN APP ROUTING ---
 # Sidebar Navigation
-page = st.sidebar.selectbox("Navigate", ["🤖 CV Processing", "📊 Admin Dashboard"])
+page = st.sidebar.selectbox("Navigate", ["🏆 Tournament Mode", "📊 Admin Dashboard"])
 
 if page == "📊 Admin Dashboard":
     run_admin_dashboard()
 
 else:
-    # === CV PROCESSING MODE ===
-    st.title("🤖 Global ATS Bridge: Hybrid Auditor")
-    st.caption("Single-prompt mode using the validated Hybrid Auditor agent")
+    # === TOURNAMENT MODE ===
+    st.title("🏆 Global ATS Bridge: The Tournament")
 
     # Processing Mode Selector
     processing_mode = st.radio("Processing Mode", ["📄 Single CV", "📚 Bulk Set"], horizontal=True)
+
+    # Agent Mode Selector
+    st.markdown("---")
+    agent_mode = st.radio(
+        "Agent Mode",
+        ["⚡ Quick Mode (Hybrid Auditor Only)", "🏆 Tournament Mode (All 3 Agents)"],
+        index=0,  # Default to Quick Mode
+        horizontal=True,
+        help="Quick Mode: Fast, cost-effective, uses only the validated Hybrid Auditor prompt. Tournament Mode: Compare all 3 agents (Conservative, Strategist, Hybrid Auditor)."
+    )
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -1199,24 +1188,28 @@ else:
 
     # Session State for storing results across reruns
     # Single mode states
-    if "result" not in st.session_state:
-        st.session_state.result = None
+    if "results" not in st.session_state:
+        st.session_state.results = None
     if "original_filename" not in st.session_state:
         st.session_state.original_filename = ""
+    if "selected_variant" not in st.session_state:
+        st.session_state.selected_variant = None
     if "original_pdf_bytes" not in st.session_state:
         st.session_state.original_pdf_bytes = None
     if "validation_report" not in st.session_state:
         st.session_state.validation_report = None
     if "session_id" not in st.session_state:
-        st.session_state.session_id = None
-    if "fidelity_report" not in st.session_state:
-        st.session_state.fidelity_report = None
+        st.session_state.session_id = None  # Unique ID for this tournament session
+    if "fidelity_reports" not in st.session_state:
+        st.session_state.fidelity_reports = {}  # {agent_name: fidelity_report}
     if "comprehensive_metrics" not in st.session_state:
-        st.session_state.comprehensive_metrics = None
+        st.session_state.comprehensive_metrics = {}  # {agent_name: comprehensive_metrics_report}
 
     # Bulk mode states
     if "bulk_results" not in st.session_state:
-        st.session_state.bulk_results = {}  # {filename: result_json}
+        st.session_state.bulk_results = {}  # {filename: {Conservative: {...}, Strategist: {...}, Hybrid_Auditor: {...}}}
+    if "bulk_selections" not in st.session_state:
+        st.session_state.bulk_selections = {}  # {filename: "agent_name"}
     if "bulk_validation_reports" not in st.session_state:
         st.session_state.bulk_validation_reports = {}  # {filename: {...}}
     if "bulk_original_pdfs" not in st.session_state:
@@ -1226,27 +1219,28 @@ else:
     if "bulk_filenames" not in st.session_state:
         st.session_state.bulk_filenames = []  # Ordered list of filenames
     if "bulk_session_id" not in st.session_state:
-        st.session_state.bulk_session_id = None
+        st.session_state.bulk_session_id = None  # Unique ID for bulk tournament session
     if "bulk_fidelity_reports" not in st.session_state:
-        st.session_state.bulk_fidelity_reports = {}  # {filename: fidelity_report}
+        st.session_state.bulk_fidelity_reports = {}  # {filename: {agent_name: fidelity_report}}
     if "bulk_comprehensive_metrics" not in st.session_state:
-        st.session_state.bulk_comprehensive_metrics = {}  # {filename: comprehensive_metrics}
+        st.session_state.bulk_comprehensive_metrics = {}  # {filename: {agent_name: comprehensive_metrics}}
 
     # === SINGLE CV MODE ===
     if processing_mode == "📄 Single CV":
-        if uploaded_file and st.button("🚀 Process CV"):
+        if uploaded_file and st.button("🚀 Start Tournament"):
             # Validate file size (20MB limit for Gemini)
             file_size_mb = len(uploaded_file.getvalue()) / (1024 * 1024)
             if file_size_mb > 20:
                 st.error(f"❌ File too large ({file_size_mb:.1f}MB). Max: 20MB")
                 st.stop()
 
-            # Reset state for new processing
-            st.session_state.result = None
+            # Reset state for new tournament
+            st.session_state.results = {}
             st.session_state.original_filename = uploaded_file.name
+            st.session_state.selected_variant = None
             # Store original PDF for comparison
             st.session_state.original_pdf_bytes = uploaded_file.getvalue()
-            # Generate unique session ID
+            # Generate unique session ID for this tournament
             st.session_state.session_id = time.strftime("%Y%m%d_%H%M%S")
 
             # 1. Save Temp File for Vision
@@ -1255,35 +1249,35 @@ else:
                 tmp_path = tmp.name
 
             try:
-                # 2. Process with Hybrid_Auditor
-                status_text = st.empty()
-                status_text.info("⚡ Processing CV with Hybrid Auditor... (Gemini 3 Flash)")
+                # 2. Parallel Execution
+                # Determine which agents to run based on mode
+                if agent_mode == "⚡ Quick Mode (Hybrid Auditor Only)":
+                    personas = ["Hybrid_Auditor"]
+                    status_text = st.empty()
+                    status_text.info("⚡ Running Hybrid Auditor... (Gemini 3 Flash)")
+                else:
+                    personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
+                    status_text = st.empty()
+                    status_text.info("⚡ Agents are running in parallel... (Gemini 3 Flash)")
 
-                persona, data, fidelity_report, comprehensive_metrics_report = run_agent(tmp_path, "Hybrid_Auditor", visa_status)
-                st.session_state.result = data
-                st.session_state.fidelity_report = fidelity_report
-                st.session_state.comprehensive_metrics = comprehensive_metrics_report
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    futures = {executor.submit(run_agent, tmp_path, p, visa_status): p for p in personas}
 
-                # Run GPA validation
-                st.session_state.validation_report = validate_gpa_conversions({"Hybrid_Auditor": data})
+                    for future in concurrent.futures.as_completed(futures):
+                        persona, data, fidelity_report, comprehensive_metrics_report = future.result()
+                        st.session_state.results[persona] = data
+                        st.session_state.fidelity_reports[persona] = fidelity_report
+                        st.session_state.comprehensive_metrics[persona] = comprehensive_metrics_report
 
-                # Auto-save to training data
-                save_training_data(
-                    st.session_state.original_filename,
-                    "Hybrid_Auditor",
-                    data,
-                    st.session_state.validation_report,
-                    st.session_state.session_id,
-                    "single",
-                    comprehensive_metrics_report
-                )
+                # Run GPA validation on all results
+                st.session_state.validation_report = validate_gpa_conversions(st.session_state.results)
 
                 # Show completion message with validation status
                 if st.session_state.validation_report.get("valid", True):
-                    status_text.success("✅ Processing Complete! All GPAs validated successfully.")
+                    status_text.success("✅ Tournament Complete! All GPAs validated successfully.")
                 else:
                     invalid_count = len(st.session_state.validation_report.get("invalid_gpas_found", []))
-                    status_text.warning(f"⚠️ Processing Complete! Found {invalid_count} invalid GPA(s). Check validation panel below.")
+                    status_text.warning(f"⚠️ Tournament Complete! Found {invalid_count} invalid GPA(s). Check validation panel below.")
 
             finally:
                 # Cleanup (guaranteed to run even if errors occur)
@@ -1292,7 +1286,7 @@ else:
 
     # === BULK CV MODE ===
     else:
-        if uploaded_files and st.button("🚀 Process Bulk CVs"):
+        if uploaded_files and st.button("🚀 Start Bulk Tournament"):
             # Validate all file sizes
             invalid_files = []
             for file in uploaded_files:
@@ -1306,12 +1300,20 @@ else:
 
             # Reset bulk state
             st.session_state.bulk_results = {}
+            st.session_state.bulk_selections = {}
             st.session_state.bulk_validation_reports = {}
             st.session_state.bulk_original_pdfs = {}
             st.session_state.bulk_filenames = [f.name for f in uploaded_files]
             st.session_state.current_cv_index = 0
-            # Generate unique session ID
+            # Generate unique session ID for this bulk tournament
             st.session_state.bulk_session_id = time.strftime("%Y%m%d_%H%M%S")
+
+            # Process all PDFs
+            # Determine which agents to run based on mode
+            if agent_mode == "⚡ Quick Mode (Hybrid Auditor Only)":
+                personas = ["Hybrid_Auditor"]
+            else:
+                personas = ["Conservative", "Strategist", "Hybrid_Auditor"]
 
             total_files = len(uploaded_files)
 
@@ -1332,27 +1334,26 @@ else:
                     tmp_path = tmp.name
 
                 try:
-                    # Process with Hybrid_Auditor
-                    persona, data, fidelity_report, comprehensive_metrics_report = run_agent(tmp_path, "Hybrid_Auditor", visa_status)
+                    # Run agents in parallel for this CV
+                    cv_results = {}
+                    cv_fidelity_reports = {}
+                    cv_comprehensive_metrics = {}
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        futures = {executor.submit(run_agent, tmp_path, p, visa_status): p for p in personas}
+
+                        for future in concurrent.futures.as_completed(futures):
+                            persona, data, fidelity_report, comprehensive_metrics_report = future.result()
+                            cv_results[persona] = data
+                            cv_fidelity_reports[persona] = fidelity_report
+                            cv_comprehensive_metrics[persona] = comprehensive_metrics_report
 
                     # Store results
-                    st.session_state.bulk_results[filename] = data
-                    st.session_state.bulk_fidelity_reports[filename] = fidelity_report
-                    st.session_state.bulk_comprehensive_metrics[filename] = comprehensive_metrics_report
+                    st.session_state.bulk_results[filename] = cv_results
+                    st.session_state.bulk_fidelity_reports[filename] = cv_fidelity_reports
+                    st.session_state.bulk_comprehensive_metrics[filename] = cv_comprehensive_metrics
 
                     # Run validation
-                    st.session_state.bulk_validation_reports[filename] = validate_gpa_conversions({"Hybrid_Auditor": data})
-
-                    # Auto-save to training data
-                    save_training_data(
-                        filename,
-                        "Hybrid_Auditor",
-                        data,
-                        st.session_state.bulk_validation_reports[filename],
-                        st.session_state.bulk_session_id,
-                        "bulk",
-                        comprehensive_metrics_report
-                    )
+                    st.session_state.bulk_validation_reports[filename] = validate_gpa_conversions(cv_results)
 
                 finally:
                     # Cleanup temp file
@@ -1363,62 +1364,298 @@ else:
                 progress_bar.progress((idx + 1) / total_files)
 
             # Completion message
-            status_text.success(f"✅ Bulk Processing Complete! Processed {total_files} CVs. Results saved to training data.")
+            status_text.success(f"✅ Bulk Tournament Complete! Processed {total_files} CVs. Review and select winners below.")
             progress_bar.empty()
 
     # --- 7. DISPLAY RESULTS ---
     # === SINGLE CV DISPLAY ===
-    if processing_mode == "📄 Single CV" and st.session_state.result:
-        data = st.session_state.result
+    if processing_mode == "📄 Single CV" and st.session_state.results:
+        r = st.session_state.results
 
-        # Check for errors first
-        if "error" in data:
-            st.error(f"❌ Processing Failed:\n{data['error']}")
-            if "debug_file" in data:
-                st.info(f"📁 Debug file saved: `{data['debug_file']}`")
-            if "error_context" in data:
-                with st.expander("🔍 Error Context (around problem area)"):
-                    st.code(data['error_context'], language=None)
-        else:
-            # Create tabs for Original vs Processed
-            tabs_list = st.tabs(["📋 Original CV", "🤖 Processed CV"])
+        # Build tab names with validation status indicators
+        validation_report = st.session_state.get('validation_report', {})
+        invalid_gpas = validation_report.get('invalid_gpas_found', [])
 
-            # ORIGINAL CV TAB
-            with tabs_list[0]:
-                st.markdown("### 📋 Original Uploaded Resume")
-                if st.session_state.original_pdf_bytes:
-                    original_buffer = io.BytesIO(st.session_state.original_pdf_bytes)
-                    display_pdf(original_buffer, height=1200)
-                else:
-                    st.warning("Original PDF not found in session state.")
+        # Get list of agents that were actually run
+        available_agents = list(r.keys())
 
-            # PROCESSED CV TAB
-            with tabs_list[1]:
-                st.markdown("### 🤖 Hybrid Auditor Output")
+        # Create dict of agent -> has_invalid_gpa
+        agent_validation_status = {}
+        for agent_name in available_agents:
+            has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
+            agent_validation_status[agent_name] = has_invalid
+
+        # Build tab names with status indicators
+        tab_names = ["📋 Original CV"]
+        for agent in available_agents:
+            if agent_validation_status.get(agent, False):
+                tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
+            else:
+                tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
+
+        # Create tabs dynamically based on number of agents
+        tabs_list = st.tabs(tab_names)
+
+        # ORIGINAL CV TAB
+        with tabs_list[0]:
+            st.markdown("### 📋 Original Uploaded Resume")
+            if st.session_state.original_pdf_bytes:
+                # Display original PDF from session state
+                original_buffer = io.BytesIO(st.session_state.original_pdf_bytes)
+                display_pdf(original_buffer, height=1200)
+            else:
+                st.warning("Original PDF not found in session state.")
+
+        # GENERATED RESUMES TABS
+        for i, key in enumerate(available_agents):
+            with tabs_list[i + 1]:  # +1 because first tab is original CV
+                data = r.get(key, {})
+
+                # Check for errors first
+                if "error" in data:
+                    st.error(f"❌ {key} Failed:\n{data['error']}")
+                    if "debug_file" in data:
+                        st.info(f"📁 Debug file saved: `{data['debug_file']}`")
+                    if "error_context" in data:
+                        with st.expander("🔍 Error Context (around problem area)"):
+                            st.code(data['error_context'], language=None)
+                    continue  # Skip the rest for this agent
+
+                # Full PDF Preview (Full Width!)
+                st.markdown(f"### 📄 {key} Resume Preview")
                 pdf_preview = generate_dynamic_pdf(data)
-                display_pdf(pdf_preview, height=1200)
+                display_pdf(pdf_preview, height=1200)  # Extra tall for better visibility
 
                 st.markdown("---")
 
                 # COMPREHENSIVE QUALITY METRICS
-                comprehensive_metrics_report = st.session_state.comprehensive_metrics
-                display_comprehensive_metrics(comprehensive_metrics_report, "Hybrid_Auditor")
+                comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
+                display_comprehensive_metrics(comprehensive_metrics_report, key)
 
                 st.markdown("---")
 
-                # DOWNLOAD BUTTON
-                pdf_bytes = generate_dynamic_pdf(data)
-                st.download_button(
-                    label="⬇️ Download Processed Resume PDF",
-                    data=pdf_bytes,
-                    file_name=f"Resume_{st.session_state.original_filename.replace('.pdf', '')}_Processed.pdf",
-                    mime="application/pdf",
-                    type="primary",
-                    use_container_width=True
-                )
+                # SELECT BUTTON (Prominent and centered)
+                # In Quick Mode, auto-select Hybrid_Auditor without button click
+                if len(available_agents) == 1 and key == "Hybrid_Auditor":
+                    if not st.session_state.selected_variant:
+                        st.session_state.selected_variant = key
+                        # Log Data (Flywheel) with validation report and comprehensive metrics
+                        validation_report = st.session_state.get('validation_report', None)
+                        session_id = st.session_state.get('session_id', None)
+                        comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
+                        save_training_data(st.session_state.original_filename, key, data, validation_report, session_id, "single", comprehensive_metrics_report)
+
+                    st.success(f"✅ **{key} selected** (Quick Mode)")
+                else:
+                    # Tournament Mode: Show selection button
+                    col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+                    with col_btn2:
+                        if st.button(f"✅ Select {key} as Winner", key=f"btn_{key}", type="primary", use_container_width=True):
+                            st.session_state.selected_variant = key
+                            # Log Data (Flywheel) with validation report and comprehensive metrics
+                            validation_report = st.session_state.get('validation_report', None)
+                            session_id = st.session_state.get('session_id', None)
+                            comprehensive_metrics_report = st.session_state.comprehensive_metrics.get(key, {})
+                            save_training_data(st.session_state.original_filename, key, data, validation_report, session_id, "single", comprehensive_metrics_report)
+                            st.toast(f"✅ {key} selected! Training data saved.")
+                            st.rerun()  # Refresh to show download button
+
+        # Show Download Section AFTER Selection
+        if st.session_state.selected_variant:
+            st.markdown("---")
+            st.success(f"🎯 You selected: **{st.session_state.selected_variant}**")
+
+            selected_data = r.get(st.session_state.selected_variant, {})
+            if "error" not in selected_data:
+                pdf_bytes = generate_dynamic_pdf(selected_data)
+
+                col_download, col_reset = st.columns([3, 1])
+                with col_download:
+                    st.download_button(
+                        label=f"⬇️ Download {st.session_state.selected_variant} Resume PDF",
+                        data=pdf_bytes,
+                        file_name=f"Resume_{st.session_state.selected_variant}.pdf",
+                        mime="application/pdf",
+                        type="primary",
+                        use_container_width=True
+                    )
+                with col_reset:
+                    if st.button("🔄 Reset", use_container_width=True):
+                        st.session_state.selected_variant = None
+                        st.rerun()
+
+        # VALIDATION REPORT PANEL
+        validation_report = st.session_state.get('validation_report', {})
+        if validation_report and not validation_report.get('valid', True):
+            st.markdown("---")
+            with st.expander("⚠️ GPA Validation Report - Invalid GPAs Detected", expanded=True):
+                st.warning(f"**Found {len(validation_report.get('invalid_gpas_found', []))} invalid GPA(s)** that don't match the authoritative grading standards.")
+
+                invalid_gpas = validation_report.get('invalid_gpas_found', [])
+
+                for idx, issue in enumerate(invalid_gpas, 1):
+                    st.markdown(f"**Issue #{idx}:**")
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        st.metric("Agent", issue['agent'])
+                        st.metric("Invalid GPA", issue['gpa'])
+                    with col2:
+                        st.text_area(
+                            "Context (where it appeared)",
+                            value=issue['context'],
+                            height=100,
+                            key=f"context_{idx}",
+                            disabled=True
+                        )
+                    st.markdown("---")
+
+                st.info("💡 **Why this matters:** These GPAs don't exist in the deterministic grading standards (grading_standards.json). The AI may have hallucinated or miscalculated the conversion. Review these carefully before selecting a winner.")
+
+        with st.expander("🔍 Debug: See Raw JSON for all Agents"):
+            st.json(st.session_state.results)
+
+        # START NEW TOURNAMENT BUTTON
+        st.markdown("---")
+        col_new_1, col_new_2, col_new_3 = st.columns([1, 2, 1])
+        with col_new_2:
+            if st.button("🔄 Start New Tournament", type="primary", use_container_width=True):
+                # Clear all session state
+                st.session_state.results = None
+                st.session_state.selected_variant = None
+                st.session_state.original_filename = ""
+                st.session_state.original_pdf_bytes = None
+                st.rerun()
+
+    # === BULK CV DISPLAY (CAROUSEL MODE) ===
+    elif processing_mode == "📚 Bulk Set" and st.session_state.bulk_filenames:
+        total_cvs = len(st.session_state.bulk_filenames)
+        current_idx = st.session_state.current_cv_index
+        current_filename = st.session_state.bulk_filenames[current_idx]
+
+        # Progress Header
+        st.markdown("---")
+        col_progress1, col_progress2, col_progress3 = st.columns([1, 2, 1])
+
+        with col_progress1:
+            voted_count = len(st.session_state.bulk_selections)
+            st.metric("Progress", f"{voted_count}/{total_cvs} Voted")
+
+        with col_progress2:
+            st.markdown(f"### 📄 CV {current_idx + 1}/{total_cvs}: `{current_filename}`")
+
+        with col_progress3:
+            # Show if current CV has been voted
+            if current_filename in st.session_state.bulk_selections:
+                st.success(f"✅ Voted: {st.session_state.bulk_selections[current_filename]}")
+            else:
+                st.warning("⏳ Not voted yet")
+
+        # Progress bar
+        progress_percentage = voted_count / total_cvs
+        st.progress(progress_percentage, text=f"{voted_count}/{total_cvs} CVs completed")
+
+        st.markdown("---")
+
+        # Get current CV results
+        r = st.session_state.bulk_results.get(current_filename, {})
+
+        if not r:
+            st.error(f"❌ No results found for {current_filename}")
+        else:
+            # Build tab names with validation status indicators
+            validation_report = st.session_state.bulk_validation_reports.get(current_filename, {})
+            invalid_gpas = validation_report.get('invalid_gpas_found', [])
+
+            # Get list of agents that were actually run
+            available_agents = list(r.keys())
+
+            # Create dict of agent -> has_invalid_gpa
+            agent_validation_status = {}
+            for agent_name in available_agents:
+                has_invalid = any(item['agent'] == agent_name for item in invalid_gpas)
+                agent_validation_status[agent_name] = has_invalid
+
+            # Build tab names with status indicators
+            tab_names = ["📋 Original CV"]
+            for agent in available_agents:
+                if agent_validation_status.get(agent, False):
+                    tab_names.append(f"🤖 {agent} ❌")  # Red X for invalid GPAs
+                else:
+                    tab_names.append(f"🤖 {agent} ✅")  # Green check for valid
+
+            # Create tabs dynamically based on number of agents
+            tabs_list = st.tabs(tab_names)
+
+            # ORIGINAL CV TAB
+            with tabs_list[0]:
+                st.markdown("### 📋 Original Uploaded Resume")
+                original_bytes = st.session_state.bulk_original_pdfs.get(current_filename)
+                if original_bytes:
+                    original_buffer = io.BytesIO(original_bytes)
+                    display_pdf(original_buffer, height=1200)
+                else:
+                    st.warning("Original PDF not found.")
+
+            # GENERATED RESUMES TABS
+            for i, key in enumerate(available_agents):
+                with tabs_list[i + 1]:  # +1 because first tab is original CV
+                    data = r.get(key, {})
+
+                    # Check for errors first
+                    if "error" in data:
+                        st.error(f"❌ {key} Failed:\n{data['error']}")
+                        if "debug_file" in data:
+                            st.info(f"📁 Debug file saved: `{data['debug_file']}`")
+                        if "error_context" in data:
+                            with st.expander("🔍 Error Context (around problem area)"):
+                                st.code(data['error_context'], language=None)
+                        continue  # Skip the rest for this agent
+
+                    # Full PDF Preview (Full Width!)
+                    st.markdown(f"### 📄 {key} Resume Preview")
+                    pdf_preview = generate_dynamic_pdf(data)
+                    display_pdf(pdf_preview, height=1200)
+
+                    st.markdown("---")
+
+                    # COMPREHENSIVE QUALITY METRICS
+                    cv_comprehensive_metrics = st.session_state.bulk_comprehensive_metrics.get(current_filename, {})
+                    comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
+                    display_comprehensive_metrics(comprehensive_metrics_report, key)
+
+                    st.markdown("---")
+
+                    # SELECT BUTTON (Prominent and centered)
+                    # In Quick Mode, auto-select Hybrid_Auditor without button click
+                    if len(available_agents) == 1 and key == "Hybrid_Auditor":
+                        if current_filename not in st.session_state.bulk_selections:
+                            st.session_state.bulk_selections[current_filename] = key
+                            # Log Data (Flywheel) with validation report and comprehensive metrics
+                            bulk_session_id = st.session_state.get('bulk_session_id', None)
+                            comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
+                            save_training_data(current_filename, key, data, validation_report, bulk_session_id, "bulk", comprehensive_metrics_report)
+
+                        st.success(f"✅ **{key} selected** (Quick Mode)")
+                    else:
+                        # Tournament Mode: Show selection button
+                        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+                        with col_btn2:
+                            # Check if this agent is already selected
+                            current_selection = st.session_state.bulk_selections.get(current_filename)
+                            button_type = "primary" if current_selection == key else "secondary"
+                            button_label = f"✅ Selected: {key}" if current_selection == key else f"Select {key} as Winner"
+
+                            if st.button(button_label, key=f"bulk_btn_{current_filename}_{key}", type=button_type, use_container_width=True):
+                                # Save selection
+                                st.session_state.bulk_selections[current_filename] = key
+                                # Log Data (Flywheel) with validation report and comprehensive metrics
+                                bulk_session_id = st.session_state.get('bulk_session_id', None)
+                                comprehensive_metrics_report = cv_comprehensive_metrics.get(key, {})
+                                save_training_data(current_filename, key, data, validation_report, bulk_session_id, "bulk", comprehensive_metrics_report)
+                                st.toast(f"✅ {key} selected for {current_filename}!")
+                                st.rerun()
 
             # VALIDATION REPORT PANEL
-            validation_report = st.session_state.get('validation_report', {})
             if validation_report and not validation_report.get('valid', True):
                 st.markdown("---")
                 with st.expander("⚠️ GPA Validation Report - Invalid GPAs Detected", expanded=True):
@@ -1430,139 +1667,74 @@ else:
                         st.markdown(f"**Issue #{idx}:**")
                         col1, col2 = st.columns([1, 3])
                         with col1:
+                            st.metric("Agent", issue['agent'])
                             st.metric("Invalid GPA", issue['gpa'])
                         with col2:
                             st.text_area(
                                 "Context (where it appeared)",
                                 value=issue['context'],
                                 height=100,
-                                key=f"context_{idx}",
+                                key=f"bulk_context_{current_filename}_{idx}",
                                 disabled=True
                             )
                         st.markdown("---")
 
-                    st.info("💡 **Why this matters:** These GPAs don't exist in the deterministic grading standards (grading_standards.json). The AI may have hallucinated or miscalculated the conversion.")
+                    st.info("💡 **Why this matters:** These GPAs don't exist in the deterministic grading standards (grading_standards.json). The AI may have hallucinated or miscalculated the conversion. Review these carefully before selecting a winner.")
 
-            with st.expander("🔍 Debug: See Raw JSON"):
-                st.json(data)
+            # NAVIGATION CONTROLS
+            st.markdown("---")
+            col_nav1, col_nav2, col_nav3, col_nav4 = st.columns([1, 1, 1, 1])
 
-        # PROCESS ANOTHER CV BUTTON
-        st.markdown("---")
-        col_new_1, col_new_2, col_new_3 = st.columns([1, 2, 1])
-        with col_new_2:
-            if st.button("🔄 Process Another CV", type="primary", use_container_width=True):
-                # Clear session state
-                st.session_state.result = None
-                st.session_state.original_filename = ""
-                st.session_state.original_pdf_bytes = None
-                st.session_state.validation_report = None
-                st.session_state.fidelity_report = None
-                st.session_state.comprehensive_metrics = None
-                st.rerun()
+            with col_nav1:
+                if current_idx > 0:
+                    if st.button("⬅️ Previous CV", use_container_width=True):
+                        st.session_state.current_cv_index -= 1
+                        st.rerun()
+                else:
+                    st.button("⬅️ Previous CV", use_container_width=True, disabled=True)
 
-    # === BULK CV DISPLAY ===
-    elif processing_mode == "📚 Bulk Set" and st.session_state.bulk_filenames:
-        total_cvs = len(st.session_state.bulk_filenames)
+            with col_nav2:
+                # Show list of all CVs with checkmarks
+                if st.button("📋 View All CVs", use_container_width=True):
+                    with st.expander("All CVs in Set", expanded=True):
+                        for idx, fname in enumerate(st.session_state.bulk_filenames):
+                            status = "✅" if fname in st.session_state.bulk_selections else "⏳"
+                            selected_agent = st.session_state.bulk_selections.get(fname, "Not voted")
+                            st.text(f"{status} {idx + 1}. {fname} → {selected_agent}")
 
-        st.markdown("---")
-        st.success(f"✅ Processed {total_cvs} CVs. All results saved to training data.")
+            with col_nav3:
+                # Next button - only enabled if current CV has selection
+                has_selection = current_filename in st.session_state.bulk_selections
 
-        # Build summary table
-        summary_data = []
-        for filename in st.session_state.bulk_filenames:
-            data = st.session_state.bulk_results.get(filename, {})
-            metrics = st.session_state.bulk_comprehensive_metrics.get(filename, {})
-
-            if "error" in data:
-                summary_data.append({
-                    "Filename": filename,
-                    "Status": "❌ Error",
-                    "RL Score": "N/A",
-                    "Grade": "N/A",
-                    "Error": data.get("error", "Unknown")[:50]
-                })
-            else:
-                rl_reward = metrics.get("rl_reward", {}) if metrics else {}
-                summary_data.append({
-                    "Filename": filename,
-                    "Status": "✅ Success",
-                    "RL Score": f"{rl_reward.get('reward', 0):.3f}",
-                    "Grade": rl_reward.get('grade', 'N/A'),
-                    "Candidate": data.get("contact_info", {}).get("name", "Unknown")
-                })
-
-        # Display summary table
-        st.markdown("### 📊 Processing Summary")
-        st.dataframe(summary_data, use_container_width=True, height=400)
-
-        # CV Selector for detailed view
-        st.markdown("---")
-        st.markdown("### 📄 View Individual Results")
-
-        selected_cv = st.selectbox(
-            "Select a CV to view details:",
-            options=st.session_state.bulk_filenames,
-            format_func=lambda x: f"{x} ({summary_data[st.session_state.bulk_filenames.index(x)]['Status']})"
-        )
-
-        if selected_cv:
-            data = st.session_state.bulk_results.get(selected_cv, {})
-
-            # Check for errors
-            if "error" in data:
-                st.error(f"❌ Processing Failed for {selected_cv}:\n{data['error']}")
-                if "debug_file" in data:
-                    st.info(f"📁 Debug file saved: `{data['debug_file']}`")
-            else:
-                # Create tabs for Original vs Processed
-                tabs_list = st.tabs(["📋 Original CV", "🤖 Processed CV"])
-
-                # ORIGINAL CV TAB
-                with tabs_list[0]:
-                    st.markdown(f"### 📋 Original: {selected_cv}")
-                    original_bytes = st.session_state.bulk_original_pdfs.get(selected_cv)
-                    if original_bytes:
-                        original_buffer = io.BytesIO(original_bytes)
-                        display_pdf(original_buffer, height=1200)
+                if current_idx < total_cvs - 1:
+                    if has_selection:
+                        if st.button("Next CV ➡️", use_container_width=True, type="primary"):
+                            st.session_state.current_cv_index += 1
+                            st.rerun()
                     else:
-                        st.warning("Original PDF not found.")
+                        st.button("Next CV ➡️", use_container_width=True, disabled=True)
+                        st.caption("⚠️ Select a winner first")
+                else:
+                    st.button("Next CV ➡️", use_container_width=True, disabled=True)
 
-                # PROCESSED CV TAB
-                with tabs_list[1]:
-                    st.markdown(f"### 🤖 Processed: {selected_cv}")
-                    pdf_preview = generate_dynamic_pdf(data)
-                    display_pdf(pdf_preview, height=1200)
+            with col_nav4:
+                # Finish button - only enabled if all CVs voted
+                all_voted = len(st.session_state.bulk_selections) == total_cvs
 
-                    st.markdown("---")
-
-                    # COMPREHENSIVE QUALITY METRICS
-                    comprehensive_metrics_report = st.session_state.bulk_comprehensive_metrics.get(selected_cv, {})
-                    display_comprehensive_metrics(comprehensive_metrics_report, "Hybrid_Auditor")
-
-                    st.markdown("---")
-
-                    # DOWNLOAD BUTTON
-                    pdf_bytes = generate_dynamic_pdf(data)
-                    st.download_button(
-                        label=f"⬇️ Download {selected_cv}",
-                        data=pdf_bytes,
-                        file_name=f"Resume_{selected_cv.replace('.pdf', '')}_Processed.pdf",
-                        mime="application/pdf",
-                        type="primary",
-                        use_container_width=True
-                    )
-
-        # PROCESS ANOTHER BATCH BUTTON
-        st.markdown("---")
-        col_new_1, col_new_2, col_new_3 = st.columns([1, 2, 1])
-        with col_new_2:
-            if st.button("🔄 Process Another Batch", type="primary", use_container_width=True):
-                # Clear bulk state
-                st.session_state.bulk_results = {}
-                st.session_state.bulk_validation_reports = {}
-                st.session_state.bulk_original_pdfs = {}
-                st.session_state.bulk_filenames = []
-                st.session_state.current_cv_index = 0
-                st.session_state.bulk_fidelity_reports = {}
-                st.session_state.bulk_comprehensive_metrics = {}
-                st.rerun()
+                if all_voted:
+                    if st.button("🎉 Finish Set", use_container_width=True, type="primary"):
+                        st.balloons()
+                        st.success(f"🎉 Congratulations! You've completed all {total_cvs} CVs in this set!")
+                        st.info(f"📊 Training data saved for {total_cvs} samples. Check the Admin Dashboard to review.")
+                        # Optionally clear bulk state
+                        if st.button("🔄 Start New Bulk Set"):
+                            st.session_state.bulk_results = {}
+                            st.session_state.bulk_selections = {}
+                            st.session_state.bulk_validation_reports = {}
+                            st.session_state.bulk_original_pdfs = {}
+                            st.session_state.bulk_filenames = []
+                            st.session_state.current_cv_index = 0
+                            st.rerun()
+                else:
+                    st.button("🎉 Finish Set", use_container_width=True, disabled=True)
+                    st.caption(f"⚠️ {total_cvs - len(st.session_state.bulk_selections)} CVs left")

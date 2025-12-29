@@ -1,0 +1,120 @@
+JSON Parse Error: Unterminated string starting at: line 55 column 13 (char 2388)
+Error at line 55, column 13
+
+============================================================
+RAW RESPONSE:
+============================================================
+{
+  "contact_info": {
+    "name": "ANAÏS VALLÉE",
+    "email": "anaïs.vallée@email.com",
+    "phone": "+33 6 7 7 3 9",
+    "location": "Nice, France",
+    "linkedin": "linkedin.com/in/anaïsvallée"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Safran Aircraft Engines",
+          "subheader": "DevOps Engineer",
+          "date": "December 2022 - Present",
+          "bullets": [
+            "Developed cloud system serving more than 989K daily users with 42% latency reduction",
+            "Optimized database queries reducing response time from 5s to 347ms",
+            "Led team of 7 engineers in migration to cloud architecture, reducing costs by 22%",
+            "Automated testing processes reducing production bugs by 41%"
+          ]
+        },
+        {
+          "header": "BNP Paribas",
+          "subheader": "Frontend Developer",
+          "date": "December 2018 - December 2021",
+          "bullets": [
+            "Automated testing processes reducing production bugs by 20%",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 22%",
+            "Led team of 3 engineers in migration to cloud architecture, reducing costs by 49%",
+            "Collaborated with international teams for delivery of critical features in Agile environment"
+          ]
+        },
+        {
+          "header": "BNP Paribas",
+          "subheader": "Full Stack Developer",
+          "date": "December 2014 - December 2019",
+          "bullets": [
+            "Automated testing processes reducing production bugs by 24%",
+            "Optimized database queries reducing response time from 8s to 430ms",
+            "Designed and developed recommendation system with 40% accuracy",
+            "Developed cloud system serving more than 751K daily users with 59% latency reduction"
+          ]
+        },
+        {
+          "header": "BNP Paribas",
+          "subheader": "Technical Project Manager",
+          "date": "December 2012 - December 2017",
+          "bullets": [
+            "Designed and developed recommendation system with 33% accuracy",
+            "Optimized database queries reducing response time from 3s to 206ms",
+            "Managed budget of €3644K for cloud infrastructure and product development",
+            "Led team of 9 engineers in migration to cloud architecture, reducing costs by 3
+
+============================================================
+CLEANED TEXT:
+============================================================
+{
+  "contact_info": {
+    "name": "ANAÏS VALLÉE",
+    "email": "anaïs.vallée@email.com",
+    "phone": "+33 6 7 7 3 9",
+    "location": "Nice, France",
+    "linkedin": "linkedin.com/in/anaïsvallée"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Safran Aircraft Engines",
+          "subheader": "DevOps Engineer",
+          "date": "December 2022 - Present",
+          "bullets": [
+            "Developed cloud system serving more than 989K daily users with 42% latency reduction",
+            "Optimized database queries reducing response time from 5s to 347ms",
+            "Led team of 7 engineers in migration to cloud architecture, reducing costs by 22%",
+            "Automated testing processes reducing production bugs by 41%"
+          ]
+        },
+        {
+          "header": "BNP Paribas",
+          "subheader": "Frontend Developer",
+          "date": "December 2018 - December 2021",
+          "bullets": [
+            "Automated testing processes reducing production bugs by 20%",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 22%",
+            "Led team of 3 engineers in migration to cloud architecture, reducing costs by 49%",
+            "Collaborated with international teams for delivery of critical features in Agile environment"
+          ]
+        },
+        {
+          "header": "BNP Paribas",
+          "subheader": "Full Stack Developer",
+          "date": "December 2014 - December 2019",
+          "bullets": [
+            "Automated testing processes reducing production bugs by 24%",
+            "Optimized database queries reducing response time from 8s to 430ms",
+            "Designed and developed recommendation system with 40% accuracy",
+            "Developed cloud system serving more than 751K daily users with 59% latency reduction"
+          ]
+        },
+        {
+          "header": "BNP Paribas",
+          "subheader": "Technical Project Manager",
+          "date": "December 2012 - December 2017",
+          "bullets": [
+            "Designed and developed recommendation system with 33% accuracy",
+            "Optimized database queries reducing response time from 3s to 206ms",
+            "Managed budget of €3644K for cloud infrastructure and product development",
+            "Led team of 9 engineers in migration to cloud architecture, reducing costs by 3

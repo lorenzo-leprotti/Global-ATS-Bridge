@@ -1,0 +1,68 @@
+JSON Parse Error: Unterminated string starting at: line 29 column 11 (char 1068)
+Error at line 29, column 11
+
+============================================================
+RAW RESPONSE:
+============================================================
+{
+  "contact_info": {
+    "name": "JOSETTE CHARLES-JACQUES",
+    "email": "josette.charles-jacques@outlook.com",
+    "phone": "+33 6 7 4 4 9",
+    "location": "Marseille, France",
+    "linkedin": "linkedin.com/in/josettecharles-jacques"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Renault Group",
+          "subheader": "Data Scientist",
+          "date": "December 2022 - Present",
+          "bullets": [
+            "Optimized database queries, reducing response time from 2s to 695ms",
+            "Collaborated with international teams for the delivery of critical features in an Agile environment",
+            "Developed machine learning system serving over 278K daily users with a 52% reduction in latency",
+            "Designed and developed recommendation system with 30% accuracy"
+          ]
+        },
+        {
+          "header": "Airbus",
+          "subheader": "Cloud Architect",
+          "date": "December 2017 - December 2021",
+          "
+
+============================================================
+CLEANED TEXT:
+============================================================
+{
+  "contact_info": {
+    "name": "JOSETTE CHARLES-JACQUES",
+    "email": "josette.charles-jacques@outlook.com",
+    "phone": "+33 6 7 4 4 9",
+    "location": "Marseille, France",
+    "linkedin": "linkedin.com/in/josettecharles-jacques"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Renault Group",
+          "subheader": "Data Scientist",
+          "date": "December 2022 - Present",
+          "bullets": [
+            "Optimized database queries, reducing response time from 2s to 695ms",
+            "Collaborated with international teams for the delivery of critical features in an Agile environment",
+            "Developed machine learning system serving over 278K daily users with a 52% reduction in latency",
+            "Designed and developed recommendation system with 30% accuracy"
+          ]
+        },
+        {
+          "header": "Airbus",
+          "subheader": "Cloud Architect",
+          "date": "December 2017 - December 2021",
+          "

@@ -1,0 +1,118 @@
+JSON Parse Error: Expecting value: line 54 column 20 (char 2548)
+Error at line 54, column 20
+
+============================================================
+RAW RESPONSE:
+============================================================
+{
+  "contact_info": {
+    "name": "AUGUSTE GUICHARD",
+    "email": "auguste.guichard@outlook.com",
+    "phone": "+33 6 0 2 7 7",
+    "location": "Nice, France",
+    "linkedin": "linkedin.com/in/augusteguichard"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Thales Group",
+          "subheader": "DevOps Engineer",
+          "date": "December 2021 - Present",
+          "bullets": [
+            "Managed €4721K budget for cloud infrastructure and product development",
+            "Automated testing processes reducing production bugs by 60%",
+            "Collaborated with international teams for delivery of critical features in an Agile environment",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 41%",
+            "Optimized database queries reducing response time from 9s to 136ms",
+            "Designed and developed recommendation system with 24% accuracy"
+          ]
+        },
+        {
+          "header": "Safran Aircraft Engines",
+          "subheader": "Software Engineer",
+          "date": "December 2018 - December 2021",
+          "bullets": [
+            "Optimized database queries reducing response time from 9s to 216ms",
+            "Managed €2922K budget for cloud infrastructure and product development",
+            "Automated testing processes reducing production bugs by 56%",
+            "Led team of 7 engineers in migration to cloud architecture, reducing costs by 55%",
+            "Designed and developed recommendation system with 40% accuracy",
+            "Developed API system serving more than 857K daily users with latency reduction of 43%"
+          ]
+        },
+        {
+          "header": "Safran Aircraft Engines",
+          "subheader": "DevOps Engineer",
+          "date": "December 2015 - December 2019",
+          "bullets": [
+            "Collaborated with international teams for delivery of critical features in an Agile environment",
+            "Led team of 10 engineers in migration to cloud architecture, reducing costs by 28%",
+            "Designed and developed recommendation system with 60% accuracy",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 42%",
+            "Managed €4371K budget for cloud infrastructure and product development",
+            "Optimized database queries reducing response time from 10s to 783ms"
+          ]
+        },
+        {
+          "header":
+
+============================================================
+CLEANED TEXT:
+============================================================
+{
+  "contact_info": {
+    "name": "AUGUSTE GUICHARD",
+    "email": "auguste.guichard@outlook.com",
+    "phone": "+33 6 0 2 7 7",
+    "location": "Nice, France",
+    "linkedin": "linkedin.com/in/augusteguichard"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Thales Group",
+          "subheader": "DevOps Engineer",
+          "date": "December 2021 - Present",
+          "bullets": [
+            "Managed €4721K budget for cloud infrastructure and product development",
+            "Automated testing processes reducing production bugs by 60%",
+            "Collaborated with international teams for delivery of critical features in an Agile environment",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 41%",
+            "Optimized database queries reducing response time from 9s to 136ms",
+            "Designed and developed recommendation system with 24% accuracy"
+          ]
+        },
+        {
+          "header": "Safran Aircraft Engines",
+          "subheader": "Software Engineer",
+          "date": "December 2018 - December 2021",
+          "bullets": [
+            "Optimized database queries reducing response time from 9s to 216ms",
+            "Managed €2922K budget for cloud infrastructure and product development",
+            "Automated testing processes reducing production bugs by 56%",
+            "Led team of 7 engineers in migration to cloud architecture, reducing costs by 55%",
+            "Designed and developed recommendation system with 40% accuracy",
+            "Developed API system serving more than 857K daily users with latency reduction of 43%"
+          ]
+        },
+        {
+          "header": "Safran Aircraft Engines",
+          "subheader": "DevOps Engineer",
+          "date": "December 2015 - December 2019",
+          "bullets": [
+            "Collaborated with international teams for delivery of critical features in an Agile environment",
+            "Led team of 10 engineers in migration to cloud architecture, reducing costs by 28%",
+            "Designed and developed recommendation system with 60% accuracy",
+            "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 42%",
+            "Managed €4371K budget for cloud infrastructure and product development",
+            "Optimized database queries reducing response time from 10s to 783ms"
+          ]
+        },
+        {
+          "header":

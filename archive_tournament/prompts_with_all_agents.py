@@ -163,70 +163,36 @@ STRICT RULES:
 5. Do NOT invent or hallucinate information not present in the original document
 """
 
-# --- HYBRID AUDITOR (The Production Agent) ---
+# --- AGENT VARIANTS (The "Specialists") ---
 AGENT_PROMPTS = {
+    "Conservative": {
+        "description": "Verbatim extraction, standard US order.",
+        "instructions": """
+        RULES:
+        - Follow the structural blueprint strictly (Summary → Experience → Education → Skills).
+        - Do NOT change a single word within the sections.
+        - Focus on 100% text fidelity.
+        - Maintain the original bullet point phrasing exactly as written.
+        - Ensure all contact info and dates are extracted with zero modification.
+        - Only reorder sections; do not rewrite content.
+        """
+    },
+    "Strategist": {
+        "description": "The 'Lossless Bridge' - Structural optimization.",
+        "instructions": """
+        RULES:
+        - Enforce the 1-2-3-4 section order (Summary → Experience → Education → Skills).
+        - If 'Education' is at the top of the PDF, move it below 'Experience' in the output.
+        - Standardize job titles to US Corporate equivalents (e.g., 'Responsabile' → 'Manager', 'Sviluppatore' → 'Developer').
+        - Keep bullets verbatim; do not enhance or add metrics.
+        - Organize sections into the standard US order.
+        - Do not change the internal facts or metrics of any achievement.
+        """
+    },
     "Hybrid_Auditor": {
         "description": "The Piana Standard: Mirror-Translation + US Structural Logic.",
         "instructions": f"""
         MANDATORY ORDER: {STRUCTURE_GUIDE}
-
-        ═══════════════════════════════════════════════════════════════════
-        RL OPTIMIZATION (Maximize Score: 0.0-1.0)
-        ═══════════════════════════════════════════════════════════════════
-
-        SCORING WEIGHTS:
-        • Entity Preservation (30%): Keep ALL metrics, names, numbers exact
-        • Information Density (25%): Preserve bullet count - no merging/truncation
-        • Action Verb Quality (25%): Strong verbs only (Designed, Managed, Led, Optimized)
-        • ATS Compliance (15%): Technical keywords exact (Docker, Python, AWS)
-        • Base Quality (5%): Clean JSON, proper formatting
-
-        ═══════════════════════════════════════════════════════════════════
-        TOP PERFORMERS (from rl_training_cvs/):
-        ═══════════════════════════════════════════════════════════════════
-
-        Frederick Saxena (0.947 - Top Score):
-        ✅ "Designed and developed recommendation system with 49% accuracy"
-        ✅ "Optimized database queries reducing response time from 7s to 641ms"
-        ✅ "Developed cloud system serving 730K+ daily users with 32% latency reduction"
-        Pattern: Strong action verbs + exact metrics (730K, 49%, 7s→641ms)
-
-        Fiamma Combi (0.941):
-        ✅ "Managed €2492K budget for cloud infrastructure and product development"
-        ✅ "Led team of 6 engineers in migration to cloud architecture, reducing costs by 35%"
-        Pattern: Leadership verbs + preserved financial metrics (€2492K, 6 engineers, 35%)
-
-        Tullio Cagnin (0.933):
-        ✅ 5 bullets in → 5 bullets out (100% density)
-        ✅ Every technical term preserved exactly (Docker, Kubernetes, React, Node.js)
-        Pattern: Complete expansion, no summarization
-
-        ═══════════════════════════════════════════════════════════════════
-        CRITICAL RULES (Violations = Auto-fail):
-        ═══════════════════════════════════════════════════════════════════
-
-        ❌ NEVER use "..." or "etc." → Instant -0.25 penalty
-        ❌ NEVER merge bullets (5 in → 3 out) → Instant -0.30 penalty
-        ❌ NEVER start with weak verbs ("Worked on", "Helped", "Assisted") → -0.15/bullet
-        ❌ NEVER lose metrics (730K users → "many users") → -0.10/metric
-        ❌ NEVER genericize tech (Docker → "container tools") → -0.15 penalty
-
-        ✅ DO: Preserve exact bullet count for each job entry
-        ✅ DO: Start EVERY bullet with strong past-tense verb
-        ✅ DO: Keep ALL numbers, percentages, team sizes, budgets exact
-        ✅ DO: Maintain technical terminology precisely
-
-        ═══════════════════════════════════════════════════════════════════
-        PRE-SUBMIT CHECKLIST:
-        ═══════════════════════════════════════════════════════════════════
-
-        □ Bullet count matches source for EVERY job?
-        □ EVERY bullet starts with strong verb (Designed/Managed/Led/Optimized)?
-        □ ALL metrics preserved (%, K, M, currency symbols)?
-        □ Technical terms exact (no genericizing)?
-        □ Zero "...", "etc.", "same as above"?
-
-        ═══════════════════════════════════════════════════════════════════
 
         REORDERING RULES:
         - PHYSICALLY move sections to follow: Summary → Work Experience → Education → Skills

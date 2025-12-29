@@ -1,0 +1,47 @@
+  - Before RL: 30-50 CVs (Quick Mode recommended)
+  - After RL: 10-20 CVs per batch, 3-5 iterations
+
+Estimated tokens per CV:
+  - Input: ~7,000 tokens (prompts + PDF content × 2)
+  - Output: ~3,000 tokens (JSON + extracted text)
+
+  Cost per CV: ~$0.0125 (about 1.25 cents)
+
+  ---
+  Total Cost Breakdown
+
+  Before RL (Baseline)
+
+  | CVs | Input Cost | Output Cost | Total |
+  |-----|------------|-------------|-------|
+  | 30  | $0.11      | $0.27       | $0.38 |
+  | 40  | $0.14      | $0.36       | $0.50 |
+  | 50  | $0.18      | $0.45       | $0.63 |
+
+  After RL (Iterative Training)
+
+  | Batches | CVs | Input Cost | Output Cost | Total |
+  |---------|-----|------------|-------------|-------|
+  | 3 × 10  | 30  | $0.11      | $0.27       | $0.38 |
+  | 4 × 15  | 60  | $0.21      | $0.54       | $0.75 |
+  | 5 × 20  | 100 | $0.35      | $0.90       | $1.25 |
+
+  ---
+  Complete Training Pipeline Cost
+
+  | Scenario    | Before RL      | After RL        | Grand Total |
+  |-------------|----------------|-----------------|-------------|
+  | Minimal     | 30 CVs ($0.38) | 30 CVs ($0.38)  | $0.76       |
+  | Recommended | 40 CVs ($0.50) | 60 CVs ($0.75)  | $1.25       |
+  | Thorough    | 50 CVs ($0.63) | 100 CVs ($1.25) | $1.88       |
+
+  💡 Cost Optimization Tips
+
+  1. Use Quick Mode: Tournament Mode (3 agents) costs 3x more (~$3.75 total)
+  2. Batch processing: Your bulk_evaluation.py with --workers 3 processes efficiently
+  3. Context caching: Gemini 3 Flash includes free context caching (90% savings on repeated content)
+  4. Free tier: Google AI Studio includes free quota that might cover your entire training!
+
+  Bottom line: Your entire RL training pipeline will cost $1-2 in total using Quick Mode. Very affordable! 🎯
+  
+  

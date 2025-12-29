@@ -1,0 +1,115 @@
+JSON Parse Error: Expecting value: line 52 column 23 (char 1451)
+Error at line 52, column 23
+
+============================================================
+RAW RESPONSE:
+============================================================
+{
+  "contact_info": {
+    "name": "■■",
+    "email": "■■@email.com",
+    "phone": "+86 10 9 0 0",
+    "location": "Shenzhen, China",
+    "linkedin": "linkedin.com/in/■■"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Alibaba Group",
+          "subheader": "■■■■",
+          "date": "December 2020 - Present",
+          "bullets": [
+            "■■■■■■■■■■■■bug■■28%",
+            "■■¥2317■■■■■■■■■■■■■■■■",
+            "■■■■■■■■■■■■■■29%",
+            "■■■■■■■■■■■■■3■■■432■■",
+            "■■Docker■Kubernetes CI/CD■■■■■■■■■■47%"
+          ]
+        },
+        {
+          "header": "Huawei",
+          "subheader": "■■■■■■■",
+          "date": "December 2016 - December 2021",
+          "bullets": [
+            "■■■■■■■■■■■■■■■■■■■■■",
+            "■■■■■■■■■■■■bug■■42%",
+            "■■■■■■■■■■■■■■50%",
+            "■■■■■■■■■■■■■7■■■628■■"
+          ]
+        },
+        {
+          "header": "Huawei",
+          "subheader": "■■■■■",
+          "date": "December 2017 - December 2019",
+          "bullets": [
+            "■■machine learning■■■■■434K+■■■■■■■■■52%",
+            "■■■■■■■■■■■■■■■■■■■■■",
+            "■■■■■■■■■■■■■4■■■880■■",
+            "■■■■■■■■■■■■■■36%"
+          ]
+        },
+        {
+          "header": "Baidu",
+          "subheader": "■■■■■",
+          "date": "December 2014 - December 2017",
+          "bullets": [
+
+
+============================================================
+CLEANED TEXT:
+============================================================
+{
+  "contact_info": {
+    "name": "■■",
+    "email": "■■@email.com",
+    "phone": "+86 10 9 0 0",
+    "location": "Shenzhen, China",
+    "linkedin": "linkedin.com/in/■■"
+  },
+  "work_authorization": "F-1 OPT (Stem)",
+  "sections": [
+    {
+      "us_category": "Experience",
+      "content": [
+        {
+          "header": "Alibaba Group",
+          "subheader": "■■■■",
+          "date": "December 2020 - Present",
+          "bullets": [
+            "■■■■■■■■■■■■bug■■28%",
+            "■■¥2317■■■■■■■■■■■■■■■■",
+            "■■■■■■■■■■■■■■29%",
+            "■■■■■■■■■■■■■3■■■432■■",
+            "■■Docker■Kubernetes CI/CD■■■■■■■■■■47%"
+          ]
+        },
+        {
+          "header": "Huawei",
+          "subheader": "■■■■■■■",
+          "date": "December 2016 - December 2021",
+          "bullets": [
+            "■■■■■■■■■■■■■■■■■■■■■",
+            "■■■■■■■■■■■■bug■■42%",
+            "■■■■■■■■■■■■■■50%",
+            "■■■■■■■■■■■■■7■■■628■■"
+          ]
+        },
+        {
+          "header": "Huawei",
+          "subheader": "■■■■■",
+          "date": "December 2017 - December 2019",
+          "bullets": [
+            "■■machine learning■■■■■434K+■■■■■■■■■52%",
+            "■■■■■■■■■■■■■■■■■■■■■",
+            "■■■■■■■■■■■■■4■■■880■■",
+            "■■■■■■■■■■■■■■36%"
+          ]
+        },
+        {
+          "header": "Baidu",
+          "subheader": "■■■■■",
+          "date": "December 2014 - December 2017",
+          "bullets": [
