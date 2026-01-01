@@ -1,0 +1,409 @@
+[
+  {
+    "source_cv_text": "RUDRA BORA\nrudra.bora@gmail.com \u2022 +91 4115604351 \u2022\nMumbai, India\nLinkedIn: linkedin.com/in/rudrabora\n\nTECHNICAL SKILLS\nNote: Skills visualized as proficiency\nbars below\nCore Skills: Swift, Rust, TypeScript,\nKotlin, Ruby, PHP, Flask, .NET\n\nEDUCATION\nMaster of Business Administration (MBA)\nBirla Institute of Technology and Science (BITS) Pilani, India\nGrade: 9.1/10 CGPA (First Division with Distinction)\nDecember 2019 - December 2021\n\nBachelor of Technology (B.Tech) in Computer Science\nIndian Institute of Science (IISc) Bangalore, India\nGrade: 81.5% (First Division)\nDecember 2011 - December 2016\n\nPROFESSIONAL EXPERIENCE\nDevOps Engineer | Infosys, Mumbai, India | December 2022 - Present\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Led team of 6 engineers in cloud migration, reducing costs by 51%\n\u2022 Developed API system serving 746K+ daily users with 32% latency reduction\n\u2022 Optimized database queries reducing response time from 6s to 461ms\n\nFrontend Developer | Google India, Mumbai, India | December 2019 - December 2021\n\u2022 Led team of 9 engineers in cloud migration, reducing costs by 33%\n\u2022 Managed budget of $2305K for cloud infrastructure and product development\n\u2022 Designed and developed recommendation system with 21% accuracy\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 36%\n\nTechnical Lead | Infosys, Mumbai, India | December 2015 - December 2019\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 25%\n\u2022 Managed budget of $710K for cloud infrastructure and product development\n\u2022 Automated testing processes reducing production bugs by 20%\n\u2022 Designed and developed recommendation system with 49% accuracy\n\u2022 Led team of 6 engineers in cloud migration, reducing costs by 48%\n\u2022 Optimized database queries reducing response time from 3s to 833ms\n\nSenior Software Engineer | Infosys, Mumbai, India | December 2015 - December 2017\n\u2022 Led team of 6 engineers in cloud migration, reducing costs by 60%\n\u2022 Developed cloud system serving 260K+ daily users with 60% latency reduction\n\u2022 Automated testing processes reducing production bugs by 45%\n\u2022 Designed and developed recommendation system with 32% accuracy\n\u2022 Managed budget of $3655K for cloud infrastructure and product development\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 26%\n\nSenior Software Engineer | Amazon Development Centre India, Mumbai, India | December 2013\n- December 2015\n\u2022 Designed and developed recommendation system with 27% accuracy\n\u2022 Optimized database queries reducing response time from 4s to 297ms\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 27%\n\u2022 Led team of 4 engineers in cloud migration, reducing costs by 37%\n\nMachine Learning Engineer | Amazon Development Centre India, Mumbai, India | December\n2009 - December 2013\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 44%\n\u2022 Developed microservices system serving 159K+ daily users with 39% latency reduction\n\u2022 Designed and developed recommendation system with 26% accuracy\n\u2022 Automated testing processes reducing production bugs by 35%",
+    "optimized_json": {
+      "contact_info": {
+        "name": "RUDRA BORA",
+        "email": "rudra.bora@gmail.com",
+        "phone": "+91 4115604351",
+        "location": "Mumbai, India",
+        "linkedin": "linkedin.com/in/rudrabora"
+      },
+      "work_authorization": "F-1 OPT (Stem)",
+      "sections": [
+        {
+          "us_category": "Experience",
+          "content": [
+            {
+              "header": "Infosys, Mumbai, India",
+              "subheader": "DevOps Engineer",
+              "date": "December 2022 - Present",
+              "bullets": [
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Led team of 6 engineers in cloud migration, reducing costs by 51%",
+                "Developed API system serving 746K+ daily users with 32% latency reduction",
+                "Optimized database queries reducing response time from 6s to 461ms"
+              ]
+            },
+            {
+              "header": "Google India, Mumbai, India",
+              "subheader": "Frontend Developer",
+              "date": "December 2019 - December 2021",
+              "bullets": [
+                "Led team of 9 engineers in cloud migration, reducing costs by 33%",
+                "Managed budget of $2305K for cloud infrastructure and product development",
+                "Designed and developed recommendation system with 21% accuracy",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 36%"
+              ]
+            },
+            {
+              "header": "Infosys, Mumbai, India",
+              "subheader": "Technical Lead",
+              "date": "December 2015 - December 2019",
+              "bullets": [
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 25%",
+                "Managed budget of $710K for cloud infrastructure and product development",
+                "Automated testing processes reducing production bugs by 20%",
+                "Designed and developed recommendation system with 49% accuracy",
+                "Led team of 6 engineers in cloud migration, reducing costs by 48%",
+                "Optimized database queries reducing response time from 3s to 833ms"
+              ]
+            },
+            {
+              "header": "Infosys, Mumbai, India",
+              "subheader": "Senior Software Engineer",
+              "date": "December 2015 - December 2017",
+              "bullets": [
+                "Led team of 6 engineers in cloud migration, reducing costs by 60%",
+                "Developed cloud system serving 260K+ daily users with 60% latency reduction",
+                "Automated testing processes reducing production bugs by 45%",
+                "Designed and developed recommendation system with 32% accuracy",
+                "Managed budget of $3655K for cloud infrastructure and product development",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 26%"
+              ]
+            },
+            {
+              "header": "Amazon Development Centre India, Mumbai, India",
+              "subheader": "Senior Software Engineer",
+              "date": "December 2013 - December 2015",
+              "bullets": [
+                "Designed and developed recommendation system with 27% accuracy",
+                "Optimized database queries reducing response time from 4s to 297ms",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 27%",
+                "Led team of 4 engineers in cloud migration, reducing costs by 37%"
+              ]
+            },
+            {
+              "header": "Amazon Development Centre India, Mumbai, India",
+              "subheader": "Machine Learning Engineer",
+              "date": "December 2009 - December 2013",
+              "bullets": [
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 44%",
+                "Developed microservices system serving 159K+ daily users with 39% latency reduction",
+                "Designed and developed recommendation system with 26% accuracy",
+                "Automated testing processes reducing production bugs by 35%"
+              ]
+            }
+          ]
+        },
+        {
+          "us_category": "Education",
+          "content": [
+            {
+              "header": "Birla Institute of Technology and Science (BITS) Pilani, India",
+              "subheader": "Master of Business Administration (MBA), Original Grade: 9.1/10 CGPA (First Division with Distinction) (US Equivalent: 4.0 GPA)",
+              "date": "December 2019 - December 2021",
+              "bullets": [
+                "First Division with Distinction"
+              ]
+            },
+            {
+              "header": "Indian Institute of Science (IISc) Bangalore, India",
+              "subheader": "Bachelor of Technology (B.Tech) in Computer Science, Original Grade: 81.5% (First Division) (US Equivalent: 4.0 GPA)",
+              "date": "December 2011 - December 2016",
+              "bullets": [
+                "First Division"
+              ]
+            }
+          ]
+        },
+        {
+          "us_category": "Skills",
+          "content": [
+            "Swift",
+            "Rust",
+            "TypeScript",
+            "Kotlin",
+            "Ruby",
+            "PHP",
+            "Flask",
+            ".NET"
+          ]
+        }
+      ]
+    },
+    "reward_score": 0.9511
+  },
+  {
+    "source_cv_text": "HEMAL NAIK\nhemal.naik@gmail.com \u2022 +91 7342935183 \u2022\nDelhi, India\nLinkedIn: linkedin.com/in/hemalnaik\n\nTECHNICAL SKILLS\nNote: Skills visualized as proficiency\nbars below\nCore Skills: Ruby, Kotlin, TypeScript,\nGo, .NET, FastAPI, Docker, CircleCI\n\nPROFESSIONAL EXPERIENCE\nMachine Learning Engineer | Google India, Delhi, India | December 2022 - Present\n\u2022 Led team of 8 engineers in cloud migration, reducing costs by 20%\n\u2022 Developed machine learning system serving 787K+ daily users with 33% latency reduction\n\u2022 Managed budget of $4598K for cloud infrastructure and product development\n\u2022 Automated testing processes reducing production bugs by 55%\n\nCloud Architect | Microsoft India, Delhi, India | December 2018 - December 2021\n\u2022 Designed and developed recommendation system with 58% accuracy\n\u2022 Developed cloud system serving 298K+ daily users with 27% latency reduction\n\u2022 Optimized database queries reducing response time from 2s to 430ms\n\u2022 Automated testing processes reducing production bugs by 26%\n\u2022 Led team of 8 engineers in cloud migration, reducing costs by 35%\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 57%\n\nData Scientist | Amazon Development Centre India, Delhi, India | December 2014 - December\n2019\n\u2022 Led team of 3 engineers in cloud migration, reducing costs by 44%\n\u2022 Automated testing processes reducing production bugs by 50%\n\u2022 Developed machine learning system serving 726K+ daily users with 31% latency reduction\n\u2022 Designed and developed recommendation system with 57% accuracy\n\u2022 Optimized database queries reducing response time from 4s to 565ms\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 55%\n\nSoftware Engineer | Tata Consultancy Services, Delhi, India | December 2014 - December 2017\n\u2022 Automated testing processes reducing production bugs by 32%\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 41%\n\u2022 Designed and developed recommendation system with 25% accuracy\n\u2022 Developed cloud system serving 743K+ daily users with 37% latency reduction\n\nBackend Engineer | Microsoft India, Delhi, India | December 2013 - December 2015\n\u2022 Led team of 10 engineers in cloud migration, reducing costs by 42%\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Automated testing processes reducing production bugs by 54%\n\u2022 Managed budget of $4579K for cloud infrastructure and product development\n\u2022 Optimized database queries reducing response time from 2s to 424ms\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 40%\n\nData Scientist | Infosys, Delhi, India | December 2008 - December 2013\n\u2022 Automated testing processes reducing production bugs by 41%\n\u2022 Developed microservices system serving 201K+ daily users with 54% latency reduction\n\u2022 Optimized database queries reducing response time from 5s to 335ms\n\u2022 Managed budget of $2089K for cloud infrastructure and product development\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 28%\n\nCloud Architect | Tata Consultancy Services, Delhi, India | December 2007 - December 2011\n\u2022 Developed microservices system serving 185K+ daily users with 43% latency reduction\n\u2022 Led team of 3 engineers in cloud migration, reducing costs by 44%\n\u2022 Managed budget of $2302K for cloud infrastructure and product development\n\u2022 Optimized database queries reducing response time from 9s to 838ms\n\nEDUCATION\nMaster of Engineering (M.E.) in Electronics\nBirla Institute of Technology and Science (BITS) Pilani, India\nGrade: 8.8/10 CGPA (First Division with Distinction)\nDecember 2016 - December 2021\nBachelor of Technology (B.Tech) in Computer Science\nIndian Institute of Technology (IIT) Delhi, India\nGrade: 72.6% (First Division)\nDecember 2013 - December 2016",
+    "optimized_json": {
+      "contact_info": {
+        "name": "HEMAL NAIK",
+        "email": "hemal.naik@gmail.com",
+        "phone": "+91 7342935183",
+        "location": "Delhi, India",
+        "linkedin": "linkedin.com/in/hemalnaik"
+      },
+      "work_authorization": "F-1 OPT (Stem)",
+      "sections": [
+        {
+          "us_category": "Experience",
+          "content": [
+            {
+              "header": "Google India, Delhi, India",
+              "subheader": "Machine Learning Engineer",
+              "date": "December 2022 - Present",
+              "bullets": [
+                "Led team of 8 engineers in cloud migration, reducing costs by 20%",
+                "Developed machine learning system serving 787K+ daily users with 33% latency reduction",
+                "Managed budget of $4598K for cloud infrastructure and product development",
+                "Automated testing processes reducing production bugs by 55%"
+              ]
+            },
+            {
+              "header": "Microsoft India, Delhi, India",
+              "subheader": "Cloud Architect",
+              "date": "December 2018 - December 2021",
+              "bullets": [
+                "Designed and developed recommendation system with 58% accuracy",
+                "Developed cloud system serving 298K+ daily users with 27% latency reduction",
+                "Optimized database queries reducing response time from 2s to 430ms",
+                "Automated testing processes reducing production bugs by 26%",
+                "Led team of 8 engineers in cloud migration, reducing costs by 35%",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 57%"
+              ]
+            },
+            {
+              "header": "Amazon Development Centre India, Delhi, India",
+              "subheader": "Data Scientist",
+              "date": "December 2014 - December 2019",
+              "bullets": [
+                "Led team of 3 engineers in cloud migration, reducing costs by 44%",
+                "Automated testing processes reducing production bugs by 50%",
+                "Developed machine learning system serving 726K+ daily users with 31% latency reduction",
+                "Designed and developed recommendation system with 57% accuracy",
+                "Optimized database queries reducing response time from 4s to 565ms",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 55%"
+              ]
+            },
+            {
+              "header": "Tata Consultancy Services, Delhi, India",
+              "subheader": "Software Engineer",
+              "date": "December 2014 - December 2017",
+              "bullets": [
+                "Automated testing processes reducing production bugs by 32%",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 41%",
+                "Designed and developed recommendation system with 25% accuracy",
+                "Developed cloud system serving 743K+ daily users with 37% latency reduction"
+              ]
+            },
+            {
+              "header": "Microsoft India, Delhi, India",
+              "subheader": "Backend Engineer",
+              "date": "December 2013 - December 2015",
+              "bullets": [
+                "Led team of 10 engineers in cloud migration, reducing costs by 42%",
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Automated testing processes reducing production bugs by 54%",
+                "Managed budget of $4579K for cloud infrastructure and product development",
+                "Optimized database queries reducing response time from 2s to 424ms",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 40%"
+              ]
+            },
+            {
+              "header": "Infosys, Delhi, India",
+              "subheader": "Data Scientist",
+              "date": "December 2008 - December 2013",
+              "bullets": [
+                "Automated testing processes reducing production bugs by 41%",
+                "Developed microservices system serving 201K+ daily users with 54% latency reduction",
+                "Optimized database queries reducing response time from 5s to 335ms",
+                "Managed budget of $2089K for cloud infrastructure and product development",
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 28%"
+              ]
+            },
+            {
+              "header": "Tata Consultancy Services, Delhi, India",
+              "subheader": "Cloud Architect",
+              "date": "December 2007 - December 2011",
+              "bullets": [
+                "Developed microservices system serving 185K+ daily users with 43% latency reduction",
+                "Led team of 3 engineers in cloud migration, reducing costs by 44%",
+                "Managed budget of $2302K for cloud infrastructure and product development",
+                "Optimized database queries reducing response time from 9s to 838ms"
+              ]
+            }
+          ]
+        },
+        {
+          "us_category": "Education",
+          "content": [
+            {
+              "header": "Birla Institute of Technology and Science (BITS) Pilani, India",
+              "subheader": "Master of Engineering (M.E.) in Electronics, Original Grade: 8.8/10 CGPA (US Equivalent: 3.8 GPA)",
+              "date": "December 2016 - December 2021",
+              "bullets": [
+                "First Division with Distinction"
+              ]
+            },
+            {
+              "header": "Indian Institute of Technology (IIT) Delhi, India",
+              "subheader": "Bachelor of Technology (B.Tech) in Computer Science, Original Grade: 72.6% (US Equivalent: 3.5 GPA)",
+              "date": "December 2013 - December 2016",
+              "bullets": [
+                "First Division"
+              ]
+            }
+          ]
+        },
+        {
+          "us_category": "Skills",
+          "content": [
+            "Ruby",
+            "Kotlin",
+            "TypeScript",
+            "Go",
+            ".NET",
+            "FastAPI",
+            "Docker",
+            "CircleCI"
+          ]
+        }
+      ]
+    },
+    "reward_score": 0.9473
+  },
+  {
+    "source_cv_text": "FREDERICK SAXENA\nfrederick.saxena@gmail.com \u2022 +91 7899054170 \u2022 Delhi, India\nLinkedIn: linkedin.com/in/fredericksaxena\n\nTECHNICAL SKILLS\nNote: Skills visualized as proficiency bars below\nCore Skills: Kotlin, Java, Swift, React, Angular, Node.js, Vue.js, Git\n\nEDUCATION\nMaster of Engineering (M.E.) in Electronics\nBirla Institute of Technology and Science (BITS) Pilani, India\nGrade: 9.4/10 CGPA (First Division with Distinction)\nDecember 2016 - December 2021\n\nBachelor of Science (B.Sc.) in Mathematics\nBirla Institute of Technology and Science (BITS) Pilani, India\nGrade: 8.9/10 CGPA (First Division with Distinction)\nDecember 2013 - December 2016\n\nPROFESSIONAL EXPERIENCE\nFrontend Developer | Tata Consultancy Services, Delhi, India | December 2020 - Present\n\u2022 Designed and developed recommendation system with 49% accuracy\n\u2022 Optimized database queries reducing response time from 7s to 641ms\n\u2022 Developed cloud system serving 730K+ daily users with 32% latency reduction\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Automated testing processes reducing production bugs by 22%\n\nBackend Engineer | Microsoft India, Delhi, India | December 2019 - December 2021\n\u2022 Managed budget of $3166K for cloud infrastructure and product development\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 59%\n\u2022 Automated testing processes reducing production bugs by 33%\n\u2022 Led team of 9 engineers in cloud migration, reducing costs by 59%\n\u2022 Optimized database queries reducing response time from 8s to 644ms\n\u2022 Designed and developed recommendation system with 55% accuracy\n\nMachine Learning Engineer | Amazon Development Centre India, Delhi, India | December 2015 - December 2019\n\u2022 Designed and developed recommendation system with 36% accuracy\n\u2022 Led team of 7 engineers in cloud migration, reducing costs by 24%\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 47%\n\u2022 Optimized database queries reducing response time from 4s to 284ms\n\nSenior Software Engineer | Amazon Development Centre India, Delhi, India | December 2015 - December 2017\n\u2022 Developed microservices system serving 257K+ daily users with 51% latency reduction\n\u2022 Designed and developed recommendation system with 53% accuracy\n\u2022 Managed budget of $3361K for cloud infrastructure and product development\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 36%\n\u2022 Led team of 7 engineers in cloud migration, reducing costs by 57%\n\nCloud Architect | Google India, Delhi, India | December 2011 - December 2015\n\u2022 Led team of 7 engineers in cloud migration, reducing costs by 50%\n\u2022 Automated testing processes reducing production bugs by 33%\n\u2022 Managed budget of $1902K for cloud infrastructure and product development\n\u2022 Developed API system serving 877K+ daily users with 56% latency reduction\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\nCloud Architect | Tata Consultancy Services, Delhi, India | December 2008 - December 2013\n\u2022 Led team of 6 engineers in cloud migration, reducing costs by 33%\n\u2022 Optimized database queries reducing response time from 7s to 332ms\n\u2022 Collaborated with cross-functional teams to deliver critical features in Agile environments\n\u2022 Managed budget of $560K for cloud infrastructure and product development\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 45%\n\nFrontend Developer | Tata Consultancy Services, Delhi, India | December 2008 - December 2011\n\u2022 Managed budget of $1745K for cloud infrastructure and product development\n\u2022 Designed and developed recommendation system with 51% accuracy\n\u2022 Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 60%\n\u2022 Optimized database queries reducing response time from 9s to 154ms\n\u2022 Led team of 5 engineers in cloud migration, reducing costs by 30%",
+    "optimized_json": {
+      "contact_info": {
+        "name": "FREDERICK SAXENA",
+        "email": "frederick.saxena@gmail.com",
+        "phone": "+91 7899054170",
+        "location": "Delhi, India",
+        "linkedin": "linkedin.com/in/fredericksaxena"
+      },
+      "work_authorization": "F-1 OPT (Stem)",
+      "sections": [
+        {
+          "us_category": "Experience",
+          "content": [
+            {
+              "header": "Tata Consultancy Services",
+              "subheader": "Frontend Developer",
+              "date": "December 2020 - Present",
+              "bullets": [
+                "Designed and developed recommendation system with 49% accuracy",
+                "Optimized database queries reducing response time from 7s to 641ms",
+                "Developed cloud system serving 730K+ daily users with 32% latency reduction",
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Automated testing processes reducing production bugs by 22%"
+              ]
+            },
+            {
+              "header": "Microsoft India",
+              "subheader": "Backend Engineer",
+              "date": "December 2019 - December 2021",
+              "bullets": [
+                "Managed budget of $3166K for cloud infrastructure and product development",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 59%",
+                "Automated testing processes reducing production bugs by 33%",
+                "Led team of 9 engineers in cloud migration, reducing costs by 59%",
+                "Optimized database queries reducing response time from 8s to 644ms",
+                "Designed and developed recommendation system with 55% accuracy"
+              ]
+            },
+            {
+              "header": "Amazon Development Centre India",
+              "subheader": "Machine Learning Engineer",
+              "date": "December 2015 - December 2019",
+              "bullets": [
+                "Designed and developed recommendation system with 36% accuracy",
+                "Led team of 7 engineers in cloud migration, reducing costs by 24%",
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 47%",
+                "Optimized database queries reducing response time from 4s to 284ms"
+              ]
+            },
+            {
+              "header": "Amazon Development Centre India",
+              "subheader": "Senior Software Engineer",
+              "date": "December 2015 - December 2017",
+              "bullets": [
+                "Developed microservices system serving 257K+ daily users with 51% latency reduction",
+                "Designed and developed recommendation system with 53% accuracy",
+                "Managed budget of $3361K for cloud infrastructure and product development",
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 36%",
+                "Led team of 7 engineers in cloud migration, reducing costs by 57%"
+              ]
+            },
+            {
+              "header": "Google India",
+              "subheader": "Cloud Architect",
+              "date": "December 2011 - December 2015",
+              "bullets": [
+                "Led team of 7 engineers in cloud migration, reducing costs by 50%",
+                "Automated testing processes reducing production bugs by 33%",
+                "Managed budget of $1902K for cloud infrastructure and product development",
+                "Developed API system serving 877K+ daily users with 56% latency reduction",
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments"
+              ]
+            },
+            {
+              "header": "Tata Consultancy Services",
+              "subheader": "Cloud Architect",
+              "date": "December 2008 - December 2013",
+              "bullets": [
+                "Led team of 6 engineers in cloud migration, reducing costs by 33%",
+                "Optimized database queries reducing response time from 7s to 332ms",
+                "Collaborated with cross-functional teams to deliver critical features in Agile environments",
+                "Managed budget of $560K for cloud infrastructure and product development",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 45%"
+              ]
+            },
+            {
+              "header": "Tata Consultancy Services",
+              "subheader": "Frontend Developer",
+              "date": "December 2008 - December 2011",
+              "bullets": [
+                "Managed budget of $1745K for cloud infrastructure and product development",
+                "Designed and developed recommendation system with 51% accuracy",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 60%",
+                "Optimized database queries reducing response time from 9s to 154ms",
+                "Led team of 5 engineers in cloud migration, reducing costs by 30%"
+              ]
+            }
+          ]
+        },
+        {
+          "us_category": "Education",
+          "content": [
+            {
+              "header": "Birla Institute of Technology and Science (BITS) Pilani, India",
+              "subheader": "Master of Engineering (M.E.) in Electronics, Original Grade: 9.4/10 CGPA (US Equivalent: 4.0 GPA)",
+              "date": "December 2016 - December 2021",
+              "bullets": [
+                "First Division with Distinction"
+              ]
+            },
+            {
+              "header": "Birla Institute of Technology and Science (BITS) Pilani, India",
+              "subheader": "Bachelor of Science (B.Sc.) in Mathematics, Original Grade: 8.9/10 CGPA (US Equivalent: 3.9 GPA)",
+              "date": "December 2013 - December 2016",
+              "bullets": [
+                "First Division with Distinction"
+              ]
+            }
+          ]
+        },
+        {
+          "us_category": "Skills",
+          "content": [
+            "Kotlin",
+            "Java",
+            "Swift",
+            "React",
+            "Angular",
+            "Node.js",
+            "Vue.js",
+            "Git"
+          ]
+        }
+      ]
+    },
+    "reward_score": 0.9473
+  }
+]

@@ -1,4 +1,5 @@
-# prompts.py
+import json
+import os
 
 # --- THE US STRUCTURAL BLUEPRINT ---
 STRUCTURE_GUIDE = """
@@ -8,6 +9,51 @@ MANDATORY SECTION ORDER:
 3. EDUCATION (Reverse Chronological)
 4. TECHNICAL SKILLS & CERTIFICATIONS
 """
+
+# --- DYNAMIC PROMPT OPTIMIZATION (Gold Standards) ---
+def load_dynamic_examples():
+    """Loads top-performing examples for few-shot prompting."""
+    examples_path = "data/dynamic_prompts.json"
+    if not os.path.exists(examples_path):
+        return "<!-- No dynamic examples found -->"
+    
+    try:
+        # Check if we should use cached version or reload (simplified for now)
+        with open(examples_path, "r") as f:
+            examples = json.load(f)
+        
+        if not examples:
+            return "<!-- Empty dynamic examples -->"
+            
+        output = "\n═══════════════════════════════════════════════════════════════════\n"
+        output += "DYNAMIC GOLD STANDARDS (Few-Shot Examples):\n"
+        output += "═══════════════════════════════════════════════════════════════════\n\n"
+        
+        for i, ex in enumerate(examples, 1):
+            output += f"EXAMPLE #{i} (RL Reward: {ex.get('reward_score', 'N/A')}):\n"
+            output += "--- SOURCE CV TEXT ---\n"
+            # Use first 800 chars of source to keep prompt within reasonable limits
+            source = ex.get('source_cv_text', '')
+            output += (source[:800] + "...") if len(source) > 800 else source
+            output += "\n--- TARGET OPTIMIZED JSON ---\n"
+            output += json.dumps(ex.get('optimized_json', {}), indent=2)
+            output += "\n═══════════════════════════════════════════════════════════════════\n\n"
+        
+        return output
+    except Exception as e:
+        return f"<!-- Error loading dynamic examples: {e} -->"
+
+def get_agent_prompt(persona):
+    """Returns the full system prompt for a specific agent, with dynamic examples."""
+    agent_data = AGENT_PROMPTS.get(persona, AGENT_PROMPTS["Hybrid_Auditor"])
+    instructions = agent_data['instructions']
+    
+    # Inject dynamic examples if the placeholder exists
+    if "{DYNAMIC_EXAMPLES}" in instructions:
+        examples = load_dynamic_examples()
+        instructions = instructions.replace("{DYNAMIC_EXAMPLES}", examples)
+    
+    return instructions
 
 # --- GLOBAL LOGIC: THE FIDELITY & MAPPING RULES ---
 # This block is sent to every agent to ensure deterministic outcomes.
@@ -167,8 +213,8 @@ STRICT RULES:
 AGENT_PROMPTS = {
     "Hybrid_Auditor": {
         "description": "The Piana Standard: Mirror-Translation + US Structural Logic.",
-        "instructions": f"""
-        MANDATORY ORDER: {STRUCTURE_GUIDE}
+        "instructions": """
+        MANDATORY ORDER: """ + STRUCTURE_GUIDE + """
 
         ═══════════════════════════════════════════════════════════════════
         RL OPTIMIZATION (Maximize Score: 0.0-1.0)
@@ -181,25 +227,7 @@ AGENT_PROMPTS = {
         • ATS Compliance (15%): Technical keywords exact (Docker, Python, AWS)
         • Base Quality (5%): Clean JSON, proper formatting
 
-        ═══════════════════════════════════════════════════════════════════
-        TOP PERFORMERS (from rl_training_cvs/):
-        ═══════════════════════════════════════════════════════════════════
-
-        Frederick Saxena (0.947 - Top Score):
-        ✅ "Designed and developed recommendation system with 49% accuracy"
-        ✅ "Optimized database queries reducing response time from 7s to 641ms"
-        ✅ "Developed cloud system serving 730K+ daily users with 32% latency reduction"
-        Pattern: Strong action verbs + exact metrics (730K, 49%, 7s→641ms)
-
-        Fiamma Combi (0.941):
-        ✅ "Managed €2492K budget for cloud infrastructure and product development"
-        ✅ "Led team of 6 engineers in migration to cloud architecture, reducing costs by 35%"
-        Pattern: Leadership verbs + preserved financial metrics (€2492K, 6 engineers, 35%)
-
-        Tullio Cagnin (0.933):
-        ✅ 5 bullets in → 5 bullets out (100% density)
-        ✅ Every technical term preserved exactly (Docker, Kubernetes, React, Node.js)
-        Pattern: Complete expansion, no summarization
+        {DYNAMIC_EXAMPLES}
 
         ═══════════════════════════════════════════════════════════════════
         CRITICAL RULES (Violations = Auto-fail):

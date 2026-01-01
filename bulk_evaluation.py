@@ -109,8 +109,8 @@ def process_single_cv(
         model = genai.GenerativeModel('gemini-3-flash-preview', generation_config=gen_config)
 
         # Get system prompt
-        agent_data = prompts.AGENT_PROMPTS.get(agent_name, prompts.AGENT_PROMPTS["Hybrid_Auditor"])
-        system_prompt = f"{prompts.BASE_INSTRUCTIONS}\n\nSTYLE RULES FOR THIS AGENT:\n{agent_data['instructions']}"
+        agent_instructions = prompts.get_agent_prompt(agent_name)
+        system_prompt = f"{prompts.BASE_INSTRUCTIONS}\n\nSTYLE RULES FOR THIS AGENT:\n{agent_instructions}"
 
         response = model.generate_content([system_prompt, f"USER VISA: {visa_status}", gemini_file])
 

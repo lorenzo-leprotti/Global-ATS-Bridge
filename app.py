@@ -31,67 +31,6 @@ def retry_with_backoff(func, max_retries=3):
             wait_time = 2 ** attempt  # 1s, 2s, 4s
             time.sleep(wait_time)
 
-# --- FIDELITY CHECKSUM ---
-def verify_fidelity(original_pdf_path, optimized_json):
-    """
-    Checksum to ensure no data loss during AI reordering.
-    Checks if original professional keywords exist in the new JSON.
-
-    Args:
-        original_pdf_path: Path to original PDF file
-        optimized_json: Transformed JSON output from agent
-
-    Returns:
-        dict with is_safe, loss_percentage, flagged_words
-    """
-    # 1. Extract text from original PDF using Gemini
-    try:
-        pdf_file = genai.upload_file(original_pdf_path)
-        time.sleep(1)  # Wait for file processing
-
-        # Simple extraction prompt
-        extraction_model = genai.GenerativeModel('gemini-3-flash-preview')
-        extract_prompt = "Extract all text from this PDF exactly as written. Return only the raw text, no formatting."
-        response = extraction_model.generate_content([extract_prompt, pdf_file])
-        original_text = response.text
-
-        # Cleanup
-        pdf_file.delete()
-    except Exception as e:
-        # If extraction fails, skip validation
-        return {
-            "is_safe": True,
-            "loss_percentage": 0.0,
-            "flagged_words": [],
-            "error": f"Could not extract original text: {str(e)}"
-        }
-
-    # 2. Normalize and extract tokens (excluding common stop words)
-    def get_tokens(text):
-        words = re.findall(r'\w+', str(text).lower())
-        # Filter out very short words/numbers to focus on "Experience" keywords
-        stop_words = {'the', 'and', 'for', 'with', 'from', 'this', 'that', 'have', 'has', 'was', 'were', 'been'}
-        return [w for w in words if len(w) > 3 and w not in stop_words]
-
-    original_tokens = Counter(get_tokens(original_text))
-    optimized_tokens = Counter(get_tokens(optimized_json))
-
-    # 3. Compare intersection
-    missing_tokens = []
-    for word, count in original_tokens.items():
-        if optimized_tokens[word] < count:
-            missing_tokens.append(word)
-
-    # 4. Calculate "Loss Ratio"
-    # We allow some loss for formatting/stop words, but >10% is a red flag
-    loss_ratio = len(missing_tokens) / len(original_tokens) if original_tokens else 0
-
-    return {
-        "is_safe": loss_ratio < 0.10,
-        "loss_percentage": round(loss_ratio * 100, 2),
-        "flagged_words": missing_tokens[:5]  # Show first 5 missing for debugging
-    }
-
 # Initialize Gemini
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
@@ -100,7 +39,7 @@ except Exception:
     st.stop()
 
 # --- 1. THE LOGGER (FLYWHEEL) ---
-def save_training_data(original_filename, selected_variant, final_json, validation_report=None, session_id=None, processing_mode="single", comprehensive_metrics=None):
+def save_training_data(original_filename, selected_variant, final_json, validation_report=None, session_id=None, processing_mode="single", comprehensive_metrics=None, original_text=None):
     """Saves the user's preference to a local JSONL file for future fine-tuning."""
     log_entry = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -109,6 +48,7 @@ def save_training_data(original_filename, selected_variant, final_json, validati
         "filename": original_filename,
         "selected_variant": selected_variant,
         "final_json": final_json,
+        "original_text": original_text,  # Added for dynamic prompt optimization
         "validation_report": validation_report if validation_report else {"valid": True, "invalid_gpas_found": []},
         "comprehensive_metrics": comprehensive_metrics if comprehensive_metrics else {}
     }
@@ -461,7 +401,7 @@ def get_system_prompt(persona):
         grading_rules = "{'Warning': 'No reference data found.'}"
 
     # 2. Get the specific Agent instructions
-    agent_data = prompts.AGENT_PROMPTS.get(persona, prompts.AGENT_PROMPTS["Strategist"])
+    agent_instructions = prompts.get_agent_prompt(persona)
 
     # 3. Stitch them together for the model
     return f"""
@@ -471,7 +411,7 @@ DETERMINISTIC GRADING RULES (REFERENCE ONLY):
 {grading_rules}
 
 STYLE RULES FOR THIS AGENT:
-{agent_data['instructions']}
+{agent_instructions}
 """
 
 # --- 3B. VALIDATION ENGINE ---
@@ -554,7 +494,7 @@ def validate_gpa_conversions(agent_results):
 
 # --- 4. THE PARALLEL ENGINE ---
 def run_agent(file_path, persona, visa_status):
-    """Runs a single Gemini agent with a specific persona, fidelity check, and comprehensive metrics."""
+    """Runs a single Gemini agent with a specific persona and comprehensive metrics."""
     try:
         # 1. Upload and WAIT for processing (Crucial Step)
         gemini_file = genai.upload_file(file_path, mime_type="application/pdf")
@@ -645,23 +585,18 @@ def run_agent(file_path, persona, visa_status):
                 "debug_file": debug_file
             }, None, None
 
-        # 4. Run Fidelity Check (Legacy metric)
-        fidelity_report = verify_fidelity(file_path, result_json)
-
-        # 5. Extract original text for comprehensive metrics
+        # 4. Extract original text for comprehensive metrics (Optimized: Reusing gemini_file)
+        original_text = None
         try:
             extract_model = genai.GenerativeModel('gemini-3-flash-preview')
             extract_prompt = "Extract all text from this PDF exactly as written. Return only the raw text, no formatting."
-            extract_file = genai.upload_file(file_path, mime_type="application/pdf")
-            time.sleep(1)
-            extract_response = extract_model.generate_content([extract_prompt, extract_file])
+            extract_response = extract_model.generate_content([extract_prompt, gemini_file])
             original_text = extract_response.text
-            extract_file.delete()
 
-            # 6. Run Comprehensive Metrics
+            # 5. Run Comprehensive Metrics
             comprehensive_metrics = metrics.run_all_metrics(original_text, result_json)
 
-            # 7. Calculate RL Reward (Enhanced Metrics)
+            # 6. Calculate RL Reward (Enhanced Metrics)
             rl_reward = enhanced_metrics.calculate_rl_reward(
                 original_text,
                 result_json,
@@ -683,7 +618,13 @@ def run_agent(file_path, persona, visa_status):
                 }
             }
 
-        return persona, result_json, fidelity_report, comprehensive_metrics
+        # Cleanup
+        try:
+            gemini_file.delete()
+        except:
+            pass
+
+        return persona, result_json, comprehensive_metrics, original_text
 
     except Exception as e:
         # This will now show up in your Debug panel if something breaks
@@ -1209,8 +1150,6 @@ else:
         st.session_state.validation_report = None
     if "session_id" not in st.session_state:
         st.session_state.session_id = None
-    if "fidelity_report" not in st.session_state:
-        st.session_state.fidelity_report = None
     if "comprehensive_metrics" not in st.session_state:
         st.session_state.comprehensive_metrics = None
 
@@ -1227,8 +1166,6 @@ else:
         st.session_state.bulk_filenames = []  # Ordered list of filenames
     if "bulk_session_id" not in st.session_state:
         st.session_state.bulk_session_id = None
-    if "bulk_fidelity_reports" not in st.session_state:
-        st.session_state.bulk_fidelity_reports = {}  # {filename: fidelity_report}
     if "bulk_comprehensive_metrics" not in st.session_state:
         st.session_state.bulk_comprehensive_metrics = {}  # {filename: comprehensive_metrics}
 
@@ -1259,10 +1196,10 @@ else:
                 status_text = st.empty()
                 status_text.info("⚡ Processing CV with Hybrid Auditor... (Gemini 3 Flash)")
 
-                persona, data, fidelity_report, comprehensive_metrics_report = run_agent(tmp_path, "Hybrid_Auditor", visa_status)
+                persona, data, comprehensive_metrics_report, original_text = run_agent(tmp_path, "Hybrid_Auditor", visa_status)
                 st.session_state.result = data
-                st.session_state.fidelity_report = fidelity_report
                 st.session_state.comprehensive_metrics = comprehensive_metrics_report
+                st.session_state.original_text = original_text
 
                 # Run GPA validation
                 st.session_state.validation_report = validate_gpa_conversions({"Hybrid_Auditor": data})
@@ -1275,7 +1212,8 @@ else:
                     st.session_state.validation_report,
                     st.session_state.session_id,
                     "single",
-                    comprehensive_metrics_report
+                    comprehensive_metrics_report,
+                    original_text
                 )
 
                 # Show completion message with validation status
@@ -1333,11 +1271,10 @@ else:
 
                 try:
                     # Process with Hybrid_Auditor
-                    persona, data, fidelity_report, comprehensive_metrics_report = run_agent(tmp_path, "Hybrid_Auditor", visa_status)
+                    persona, data, comprehensive_metrics_report, original_text = run_agent(tmp_path, "Hybrid_Auditor", visa_status)
 
                     # Store results
                     st.session_state.bulk_results[filename] = data
-                    st.session_state.bulk_fidelity_reports[filename] = fidelity_report
                     st.session_state.bulk_comprehensive_metrics[filename] = comprehensive_metrics_report
 
                     # Run validation
@@ -1351,7 +1288,8 @@ else:
                         st.session_state.bulk_validation_reports[filename],
                         st.session_state.bulk_session_id,
                         "bulk",
-                        comprehensive_metrics_report
+                        comprehensive_metrics_report,
+                        original_text
                     )
 
                 finally:
@@ -1456,7 +1394,6 @@ else:
                 st.session_state.original_filename = ""
                 st.session_state.original_pdf_bytes = None
                 st.session_state.validation_report = None
-                st.session_state.fidelity_report = None
                 st.session_state.comprehensive_metrics = None
                 st.rerun()
 
@@ -1563,6 +1500,5 @@ else:
                 st.session_state.bulk_original_pdfs = {}
                 st.session_state.bulk_filenames = []
                 st.session_state.current_cv_index = 0
-                st.session_state.bulk_fidelity_reports = {}
                 st.session_state.bulk_comprehensive_metrics = {}
                 st.rerun()
