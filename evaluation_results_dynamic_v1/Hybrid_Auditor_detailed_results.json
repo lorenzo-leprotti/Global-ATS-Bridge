@@ -1,0 +1,355 @@
+[
+  {
+    "pdf_path": "test_cvs/cv_french_Anaïs_Vallée_20251224_172614.pdf",
+    "filename": "cv_french_Anaïs_Vallée_20251224_172614.pdf",
+    "agent_name": "Hybrid_Auditor",
+    "success": true,
+    "error": null,
+    "result_json": {
+      "contact_info": {
+        "name": "ANAÏS VALLÉE",
+        "email": "anaïs.vallée@email.com",
+        "phone": "+33 6 7 7 3 9 7 3 9",
+        "location": "Nice, France",
+        "linkedin": "linkedin.com/in/anaïsvallée"
+      },
+      "work_authorization": "F-1 OPT (Stem)",
+      "sections": [
+        {
+          "us_category": "Experience",
+          "content": [
+            {
+              "header": "Safran Aircraft Engines, Nice, France",
+              "subheader": "DevOps Engineer",
+              "date": "December 2022 - Present",
+              "bullets": [
+                "Developed cloud system serving over 989K daily users with 42% latency reduction",
+                "Optimized database queries reducing response time from 5s to 347ms",
+                "Led team of 7 engineers in migration to cloud architecture, reducing costs by 22%",
+                "Automated testing processes reducing production bugs by 41%"
+              ]
+            },
+            {
+              "header": "BNP Paribas, Nice, France",
+              "subheader": "Frontend Developer",
+              "date": "December 2018 - December 2021",
+              "bullets": [
+                "Automated testing processes reducing production bugs by 20%",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 22%",
+                "Led team of 3 engineers in migration to cloud architecture, reducing costs by 49%",
+                "Collaborated with international teams for delivery of critical features in Agile environment"
+              ]
+            },
+            {
+              "header": "BNP Paribas, Nice, France",
+              "subheader": "Full Stack Developer",
+              "date": "December 2014 - December 2019",
+              "bullets": [
+                "Automated testing processes reducing production bugs by 24%",
+                "Optimized database queries reducing response time from 8s to 430ms",
+                "Designed and developed recommendation system with 40% accuracy",
+                "Developed cloud system serving over 751K daily users with 59% latency reduction"
+              ]
+            },
+            {
+              "header": "BNP Paribas, Nice, France",
+              "subheader": "Technical Project Manager",
+              "date": "December 2012 - December 2017",
+              "bullets": [
+                "Designed and developed recommendation system with 33% accuracy",
+                "Optimized database queries reducing response time from 3s to 206ms",
+                "Managed budget of €3644K for cloud infrastructure and product development",
+                "Led team of 9 engineers in migration to cloud architecture, reducing costs by 33%",
+                "Collaborated with international teams for delivery of critical features in Agile environment"
+              ]
+            },
+            {
+              "header": "Airbus, Nice, France",
+              "subheader": "Backend Engineer",
+              "date": "December 2011 - December 2015",
+              "bullets": [
+                "Led team of 3 engineers in migration to cloud architecture, reducing costs by 27%",
+                "Automated testing processes reducing production bugs by 29%",
+                "Collaborated with international teams for delivery of critical features in Agile environment",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 60%",
+                "Designed and developed recommendation system with 55% accuracy"
+              ]
+            },
+            {
+              "header": "BNP Paribas, Nice, France",
+              "subheader": "DevOps Engineer",
+              "date": "December 2008 - December 2013",
+              "bullets": [
+                "Automated testing processes reducing production bugs by 58%",
+                "Developed API system serving over 948K daily users with 48% latency reduction",
+                "Collaborated with international teams for delivery of critical features in Agile environment",
+                "Optimized database queries reducing response time from 10s to 643ms",
+                "Led team of 8 engineers in migration to cloud architecture, reducing costs by 21%"
+              ]
+            },
+            {
+              "header": "Thales Group, Nice, France",
+              "subheader": "Frontend Developer",
+              "date": "December 2007 - December 2011",
+              "bullets": [
+                "Managed budget of €964K for cloud infrastructure and product development",
+                "Developed API system serving over 289K daily users with 59% latency reduction",
+                "Designed and developed recommendation system with 55% accuracy",
+                "Collaborated with international teams for delivery of critical features in Agile environment",
+                "Implemented CI/CD pipeline with Docker and Kubernetes, improving deployment speed by 39%"
+              ]
+            }
+          ]
+        },
+        {
+          "us_category": "Education",
+          "content": [
+            {
+              "header": "École Centrale Paris, France",
+              "subheader": "Master in Finance, Original Grade: 15.0/20 (US Equivalent: 3.7 GPA)",
+              "date": "December 2018 - December 2021",
+              "bullets": []
+            },
+            {
+              "header": "Télécom Paris, France",
+              "subheader": "DUT Computer Science, Original Grade: 14.6/20 (US Equivalent: 3.5 GPA)",
+              "date": "December 2014 - December 2016",
+              "bullets": []
+            }
+          ]
+        },
+        {
+          "us_category": "Skills",
+          "content": [
+            "Go",
+            "Kotlin",
+            "Python",
+            "JavaScript",
+            "Swift",
+            "Flask",
+            ".NET",
+            "Jenkins",
+            "CircleCI",
+            "Ansible",
+            "Kubernetes",
+            "Terraform",
+            "Git",
+            "Docker",
+            "PostgreSQL",
+            "MySQL",
+            "Cassandra",
+            "AWS",
+            "DigitalOcean",
+            "AWS Certified Solutions Architect"
+          ]
+        }
+      ]
+    },
+    "base_metrics": {
+      "metrics": {
+        "bullet_preservation": {
+          "original_count": 32,
+          "output_count": 32,
+          "preservation_ratio": 1.0,
+          "status": "✅",
+          "score": 1.0
+        },
+        "json_integrity": {
+          "total_issues": 2,
+          "issues": [
+            {
+              "path": "root.sections[1].content[0].bullets",
+              "issue": "Empty array"
+            },
+            {
+              "path": "root.sections[1].content[1].bullets",
+              "issue": "Empty array"
+            }
+          ],
+          "status": "❌",
+          "score": 0.8
+        },
+        "phantom_detection": {
+          "phantom_sections": [
+            {
+              "section": "Education[0]",
+              "issue": "Empty bullets array"
+            },
+            {
+              "section": "Education[1]",
+              "issue": "Empty bullets array"
+            }
+          ],
+          "count": 2,
+          "status": "❌",
+          "score": 0.6
+        },
+        "structural_compliance": {
+          "expected_order": [
+            "Summary",
+            "Experience",
+            "Education",
+            "Skills"
+          ],
+          "actual_order": [
+            "Experience",
+            "Education",
+            "Skills"
+          ],
+          "present_categories": [
+            "Experience",
+            "Education",
+            "Skills"
+          ],
+          "compliant": true,
+          "status": "✅",
+          "score": 1.0
+        },
+        "translation_quality": {
+          "checks": {
+            "has_action_verbs": true,
+            "no_untranslated": true,
+            "has_bullets": true,
+            "no_placeholder_text": true
+          },
+          "quality_score": 1.0,
+          "status": "✅",
+          "score": 1.0
+        },
+        "field_coverage": {
+          "expected_fields": [
+            "name",
+            "email",
+            "phone",
+            "location"
+          ],
+          "present_fields": [
+            "name",
+            "email",
+            "phone",
+            "location"
+          ],
+          "coverage_ratio": 1.0,
+          "has_work_auth": true,
+          "has_sections": true,
+          "status": "✅",
+          "score": 1.0
+        },
+        "section_density": {
+          "total_bullets": 32,
+          "total_entries": 7,
+          "avg_bullets_per_entry": 4.6,
+          "status": "✅",
+          "score": 1.0
+        },
+        "completeness_check": {
+          "truncation_issues": [],
+          "total_truncated": 0,
+          "status": "✅",
+          "score": 1.0
+        }
+      },
+      "overall_score": 0.95,
+      "overall_status": "✅",
+      "grade": "A"
+    },
+    "rl_reward": {
+      "reward": 0.9233,
+      "grade": "A-",
+      "component_scores": {
+        "base_overall": 0.95,
+        "entity_preservation": 1.0,
+        "information_density": 1.0,
+        "action_verb_quality": 1.0,
+        "ats_compliance": 0.8888888888888888
+      },
+      "weights": {
+        "base_overall": 0.6,
+        "entity_preservation": 0.08,
+        "information_density": 0.07,
+        "action_verb_quality": 0.05,
+        "ats_compliance": 0.15
+      },
+      "weighted_contributions": {
+        "base_overall": 0.57,
+        "entity_preservation": 0.08,
+        "information_density": 0.07,
+        "action_verb_quality": 0.05,
+        "ats_compliance": 0.1333
+      },
+      "enhanced_metrics": {
+        "entity_preservation": {
+          "entity_preservation": {
+            "dates": 1.0,
+            "numbers": 1.0,
+            "emails": 1.0,
+            "phones": 1.0
+          },
+          "original_entity_counts": {
+            "dates": 13,
+            "numbers": 37,
+            "emails": 0,
+            "phones": 1
+          },
+          "output_entity_counts": {
+            "dates": 13,
+            "numbers": 40,
+            "emails": 0,
+            "phones": 1
+          },
+          "overall_preservation": 1.0,
+          "status": "✅",
+          "score": 1.0
+        },
+        "information_density": {
+          "original_words": 556,
+          "output_words": 562,
+          "density_ratio": 1.011,
+          "avg_bullet_words": 10.9,
+          "is_healthy": true,
+          "status": "✅",
+          "score": 1.0
+        },
+        "action_verb_quality": {
+          "total_bullets": 32,
+          "strong_verb_count": 27,
+          "weak_verb_count": 0,
+          "strong_ratio": 0.844,
+          "weak_ratio": 0.0,
+          "status": "✅",
+          "score": 1.0
+        },
+        "ats_compliance": {
+          "checks": {
+            "has_contact_name": true,
+            "has_contact_email": true,
+            "has_contact_phone": true,
+            "has_work_auth": true,
+            "has_experience_section": true,
+            "has_education_section": true,
+            "proper_section_order": true,
+            "no_special_chars_in_contact": false,
+            "bullets_are_strings": true
+          },
+          "compliance_score": 0.889,
+          "status": "⚠️",
+          "score": 0.8888888888888888
+        }
+      },
+      "hard_constraints": {
+        "checks": {
+          "valid_json": true,
+          "has_contact_info": true,
+          "has_sections": true,
+          "no_truncation_markers": true,
+          "no_empty_sections": true,
+          "correct_section_types": true
+        },
+        "passed": true,
+        "fail_count": 0,
+        "score": 1.0
+      }
+    },
+    "processing_time": 47.131951093673706
+  }
+]

@@ -8,6 +8,11 @@ import time
 import argparse
 from pathlib import Path
 from typing import List, Dict
+import warnings
+
+# Suppress Gemini deprecation warning
+warnings.filterwarnings("ignore", message="All support for the `google.generativeai` package has ended")
+
 import google.generativeai as genai
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
@@ -102,7 +107,7 @@ def process_single_cv(
         # 2. Generate response
         gen_config = genai.GenerationConfig(
             temperature=0.0,
-            max_output_tokens=16384,  # Increased for longer CVs
+            max_output_tokens=65536,  # Maximum supported - prevents truncation
             response_mime_type="application/json"
         )
 
@@ -335,7 +340,7 @@ def main():
     parser.add_argument("--agent", type=str, default="Hybrid_Auditor",
                         choices=["Conservative", "Strategist", "Hybrid_Auditor"],
                         help="Agent to use for processing")
-    parser.add_argument("--workers", type=int, default=3, help="Number of parallel workers")
+    parser.add_argument("--workers", type=int, default=1, help="Number of parallel workers")
     parser.add_argument("--output-dir", type=str, default="evaluation_results",
                         help="Output directory for results")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of CVs to process")
