@@ -212,7 +212,7 @@ STRICT RULES:
 # --- HYBRID AUDITOR (The Production Agent) ---
 AGENT_PROMPTS = {
     "Hybrid_Auditor": {
-        "description": "The Piana Standard: Mirror-Translation + US Structural Logic.",
+        "description": "The Gold Standard: Mirror-Translation + US Structural Logic.",
         "instructions": """
         MANDATORY ORDER: """ + STRUCTURE_GUIDE + """
 

@@ -190,7 +190,7 @@ AGENT_PROMPTS = {
         """
     },
     "Hybrid_Auditor": {
-        "description": "The Piana Standard: Mirror-Translation + US Structural Logic.",
+        "description": "The Gold Standard: Mirror-Translation + US Structural Logic.",
         "instructions": f"""
         MANDATORY ORDER: {STRUCTURE_GUIDE}
 

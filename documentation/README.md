@@ -23,4 +23,4 @@ To achieve "Lossless" data transformation, the project employs a rigorous Reinfo
 
 📄 Contact
 
-Developed by Lorenzo Leprotti, Special Projects Lead at Piana Technology. For inquiries and/or suggestions, please feel free to contact me here or on Linkedin (see profile info).
+Developed by Lorenzo Leprotti. For inquiries, feel free to reach out on LinkedIn (see profile).
